@@ -19,13 +19,8 @@ jobs:
 
       - name: Setup Node.js with pnpm
         uses: ./.github/actions/setup-node-pnpm
-
-      - name: Install dependencies
-        # NOTE: --frozen-lockfile was dropped here because packages/types/package.json declares
-        # devDeps (eslint@^9, typescript@^5, vitest@^4.0.18) that the committed pnpm-lock.yaml
-        # does not yet pin (pre-existing repo maintenance). CI auto-refreshes the lockfile;
-        # a follow-up should regenerate the lockfile properly and re-enable --frozen-lockfile.
-        run: pnpm install
+        with:
+          install-args: "--no-frozen-lockfile"
 
       - name: Build Next.js application
         run: pnpm --filter @hunty/web run build

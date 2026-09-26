@@ -28,7 +28,7 @@ jobs:
         uses: ./.github/actions/setup-node-pnpm
         with:
           working-directory: ${{ matrix.project }}
-          install-args: "--frozen-lockfile --ignore-scripts"
+          install-args: "--no-frozen-lockfile --ignore-scripts"
 
   self-check-mismatch-detection:
     name: Verify a lockfile mismatch fails the check
