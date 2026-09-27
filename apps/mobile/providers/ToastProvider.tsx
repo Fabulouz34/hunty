@@ -22,7 +22,7 @@ import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type ToastContextValue = {
-  showToast: (input: ToastInput & { type?: ToastVariant }) => void;
+  showToast: (input: ToastInput & { type?: string }) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
@@ -126,7 +126,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const timersRef = useRef(new Map<number, ReturnType<typeof setTimeout>>());
 
-  useEffect(() => queueRef.current.subscribe(setToasts), []);
+  useEffect(() => queueRef.current.subscribe((items) => setToasts([...items])), []);
 
   useEffect(() => {
     const timers = timersRef.current;
@@ -155,7 +155,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 
   const showToast = useCallback(
-    (input: ToastInput & { type?: ToastVariant }) => {
+    (input: ToastInput & { type?: string }) => {
       const { item, evicted } = queueRef.current.add(input);
       for (const dropped of evicted) {
         clearTimer(dropped.id);
