@@ -1,0 +1,163 @@
+{
+  "common": {
+    "appVersion": "Hunty v{{version}} development build",
+    "loading": "Loading…",
+    "error": "Something went wrong"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "balance": "Balance: {{amount}} XLM"
+  },
+  "hunts": {
+    "title": "Game Arcade",
+    "subtitle": "Embark on real-world treasure hunts, solve clues, and claim crypto rewards.",
+    "stats": {
+      "activeHunts": "Active Hunts",
+      "xlmPooled": "XLM Pooled",
+      "activePlayers": "Active Players"
+    },
+    "featuredHunts": "Featured Hunts",
+    "badge": {
+      "active": "Active"
+    },
+    "card": {
+      "cluesTasks": "Clues / Tasks",
+      "checkpoints": "{{count}} checkpoints",
+      "potentialReward": "Potential Reward"
+    },
+    "actions": {
+      "viewHunt": "View Hunt",
+      "joining": "Joining...",
+      "joinHunt": "Join Hunt"
+    }
+  },
+  "play": {
+    "title": "Active Hunt Session",
+    "progress": {
+      "loading": "Loading clues...",
+      "allSolved": "All clues solved",
+      "clueOf": "Clue {{current}} of {{total}}"
+    },
+    "empty": {
+      "title": "Join a hunt first",
+      "description": "Register for an active hunt from the Hunts tab to unlock clue progress and transaction steps.",
+      "cta": "Browse Hunts"
+    },
+    "location": {
+      "label": "Location services",
+      "trackingEnabled": "GPS tracking is enabled for live geofence checks and low-power updates.",
+      "trackingPaused": "Location sharing is paused. Clues can still be checked using a one-time GPS read.",
+      "permissionRequired": "Allow location access to use location-based clues and geofencing.",
+      "requesting": "Requesting location access…",
+      "liveCoords": "Live coordinates: {{lat}}, {{lng}}"
+    },
+    "clue": {
+      "current": "Current clue",
+      "unlocked": "Unlocked clue",
+      "locked": "Locked clue",
+      "points": "{{points}} pts"
+    },
+    "answer": {
+      "title": "Submit answer",
+      "description": "The final correct answer will move you into wallet approval and Soroban consensus.",
+      "placeholder": "Type the exact checkpoint answer",
+      "incorrect": "Incorrect answer. Review the clue and try again.",
+      "checkingGps": "Checking GPS...",
+      "submit": "Submit answer",
+      "queued": "Answer queued. It will be submitted when back online.",
+      "scanQr": "Scan QR checkpoint",
+      "abandon": "Abandon hunt"
+    },
+    "qrScanner": {
+      "title": "Scan checkpoint QR"
+    },
+    "toast": {
+      "switchNetwork": "Switch wallet to Stellar Testnet before submitting final proof."
+    }
+  },
+  "profile": {
+    "title": "Player Profile",
+    "subtitle": "View your hunt history, progress, and total points earned.",
+    "wallet": {
+      "watchOnly": "Watch-only Address",
+      "connected": "Connected Wallet"
+    },
+    "empty": {
+      "title": "Connect your wallet",
+      "description": "Your profile uses the connected Stellar address to load hunts played and points earned.",
+      "cta": "Go to Settings"
+    },
+    "summary": {
+      "title": "Summary Statistics",
+      "totalHunts": "Total Hunts",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "totalPoints": "Total Points",
+      "nftRewards": "NFT Rewards",
+      "completionPct": "Completion %"
+    },
+    "trophies": {
+      "title": "Digital Trophies",
+      "empty": {
+        "title": "No trophies yet",
+        "description": "Complete your first hunt to earn NFT trophies and rewards.",
+        "cta": "Browse Hunts"
+      }
+    },
+    "history": {
+      "title": "Hunt History",
+      "statusCompleted": "Completed",
+      "statusInProgress": "In Progress",
+      "clues": "Clues: {{done}}/{{total}}",
+      "points": "Points: {{count}}",
+      "started": "Started {{date}}",
+      "finished": "Finished {{date}}",
+      "viewDetails": "View details"
+    }
+  },
+  "settings": {
+    "version": "Hunty v{{version}} development build",
+    "sections": {
+      "appearance": "Appearance",
+      "notifications": "Notifications",
+      "wallet": "Wallet",
+      "support": "Support"
+    },
+    "rows": {
+      "theme": {
+        "label": "Theme",
+        "description": "Light, Dark, or System default"
+      },
+      "pushNotifications": {
+        "label": "Push Notifications",
+        "description": "Job alerts, messages, and updates"
+      },
+      "walletSecurity": {
+        "label": "Wallet Security",
+        "description": "Protect wallet actions with biometrics and PIN fallback"
+      },
+      "disconnectWallet": {
+        "label": "Disconnect Wallet",
+        "description": "Sign out and unlink this device"
+      },
+      "documentation": {
+        "label": "Documentation"
+      },
+      "helpCenter": {
+        "label": "Help Center"
+      }
+    }
+  },
+  "disconnectModal": {
+    "title": "Disconnect Wallet",
+    "body": "You'll be signed out and your wallet will be unlinked from this device. Your assets remain safe on-chain.",
+    "confirm": "Yes, Disconnect",
+    "cancel": "Cancel",
+    "a11y": {
+      "confirmLabel": "Confirm disconnect wallet",
+      "confirmHint": "Disconnects your wallet from this device",
+      "cancelLabel": "Cancel",
+      "cancelHint": "Closes dialog without disconnecting"
+    }
+  }
+}

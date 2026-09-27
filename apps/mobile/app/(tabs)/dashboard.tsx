@@ -2,12 +2,14 @@ import { HuntyRefreshControl } from '@components/HuntyRefreshControl';
 import { useRefreshByUser } from '@hooks/useRefreshByUser';
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 // Placeholder for dashboard data fetching
 const fetchDashboard = async () => ({ balance: 0 });
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const { data, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: fetchDashboard,
@@ -21,8 +23,8 @@ export default function Dashboard() {
       refreshControl={<HuntyRefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>Dashboard</Text>
-        <Text style={styles.subtitle}>Balance: {data?.balance} XLM</Text>
+        <Text style={styles.title}>{t('dashboard.title')}</Text>
+        <Text style={styles.subtitle}>{t('dashboard.balance', { amount: data?.balance })}</Text>
       </View>
     </ScrollView>
   );

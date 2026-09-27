@@ -1,13 +1,13 @@
 import { ThemedButton, ThemedCustomText, ThemedView } from '@components/themed';
 import { useHaptics } from '@hooks/useHaptics';
-import type { StoredHunt } from '@lib/types';
+import type { StoredHunt } from '@hunty/types';
 import { useTheme } from '@providers/ThemeProvider';
 import { useToast } from '@providers/ToastProvider';
 import { getAllHunts } from '@store/huntStore';
 import { usePlayerStore, useWalletStore } from '@store/useStore';
-import type { StoredHunt } from '@hunty/types';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 function rewardLabel(hunt: StoredHunt) {
@@ -17,6 +17,7 @@ function rewardLabel(hunt: StoredHunt) {
 }
 
 export default function HuntsScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();
   const haptics = useHaptics();
@@ -34,11 +35,15 @@ export default function HuntsScreen() {
 
   const stats = useMemo(
     () => [
-      { value: String(hunts.length), label: 'Active Hunts', color: 'primary' as const },
-      { value: '350+', label: 'XLM Pooled', color: 'secondary' as const },
-      { value: '1.2k', label: 'Active Players', color: 'success' as const },
+      {
+        value: String(hunts.length),
+        label: t('hunts.stats.activeHunts'),
+        color: 'primary' as const,
+      },
+      { value: '350+', label: t('hunts.stats.xlmPooled'), color: 'secondary' as const },
+      { value: '1.2k', label: t('hunts.stats.activePlayers'), color: 'success' as const },
     ],
-    [hunts.length],
+    [hunts.length, t],
   );
 
   const handleJoinHunt = (hunt: StoredHunt) => {
@@ -78,10 +83,10 @@ export default function HuntsScreen() {
       >
         <View style={styles.header}>
           <ThemedCustomText variant="h1" color="primary" weight="800">
-            Game Arcade
+            {t('hunts.title')}
           </ThemedCustomText>
           <ThemedCustomText variant="body" color="text" style={styles.subtitle}>
-            Embark on real-world treasure hunts, solve clues, and claim crypto rewards.
+            {t('hunts.subtitle')}
           </ThemedCustomText>
         </View>
 
@@ -109,7 +114,7 @@ export default function HuntsScreen() {
         </View>
 
         <ThemedCustomText variant="h3" color="text" weight="700" style={styles.sectionTitle}>
-          Featured Hunts
+          {t('hunts.featuredHunts')}
         </ThemedCustomText>
 
         <View style={styles.listContainer}>
@@ -132,7 +137,7 @@ export default function HuntsScreen() {
                 <View style={styles.badgeRow}>
                   <View style={[styles.badge, { backgroundColor: colors.info + '20' }]}>
                     <ThemedCustomText variant="caption" color="info" weight="700">
-                      Active
+                      {t('hunts.badge.active')}
                     </ThemedCustomText>
                   </View>
                   <View style={[styles.badge, { backgroundColor: colors.secondary + '20' }]}>
@@ -152,15 +157,15 @@ export default function HuntsScreen() {
                 <View style={[styles.cardInfoRow, { borderTopColor: colors.border }]}>
                   <View style={styles.infoCol}>
                     <ThemedCustomText variant="caption" color="text" style={styles.infoLabel}>
-                      Clues / Tasks
+                      {t('hunts.card.cluesTasks')}
                     </ThemedCustomText>
                     <ThemedCustomText variant="body" color="text" weight="600">
-                      {hunt.cluesCount} checkpoints
+                      {t('hunts.card.checkpoints', { count: hunt.cluesCount })}
                     </ThemedCustomText>
                   </View>
                   <View style={styles.infoCol}>
                     <ThemedCustomText variant="caption" color="text" style={styles.infoLabel}>
-                      Potential Reward
+                      {t('hunts.card.potentialReward')}
                     </ThemedCustomText>
                     <ThemedCustomText variant="body" color="primary" weight="700">
                       {rewardLabel(hunt)}
@@ -169,7 +174,13 @@ export default function HuntsScreen() {
                 </View>
 
                 <ThemedButton
-                  text={isCurrent ? 'View Hunt' : isLoading ? 'Joining...' : 'Join Hunt'}
+                  text={
+                    isCurrent
+                      ? t('hunts.actions.viewHunt')
+                      : isLoading
+                        ? t('hunts.actions.joining')
+                        : t('hunts.actions.joinHunt')
+                  }
                   variant={isCurrent ? 'success' : 'primary'}
                   size="md"
                   fullWidth

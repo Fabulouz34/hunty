@@ -1,6 +1,7 @@
 import { usePlayerLocation } from '@app/hooks/usePlayerLocation';
 import { ClueMarkdownRenderer } from '@components/ClueMarkdownRenderer';
 import { EmptyState } from '@components/EmptyState';
+import { OfflineBanner } from '@components/OfflineBanner';
 import { QRScanner } from '@components/QRScanner';
 import { ThemedButton, ThemedCustomText, ThemedView } from '@components/themed';
 import { useHaptics } from '@hooks/useHaptics';
@@ -11,23 +12,24 @@ import { useTheme } from '@providers/ThemeProvider';
 import { useToast } from '@providers/ToastProvider';
 import { getHuntClues } from '@store/huntStore';
 import { usePlayerStore, useWalletStore } from '@store/useStore';
-import type { Clue } from '@hunty/types';
-import { verifyQrAgainstClue } from '@lib/qrCodeDecryptor';
-import { matchesClueAnswer } from '@lib/clueAnswerVerification';
-import { useToast } from '@providers/ToastProvider';
-import { ClueMarkdownRenderer } from '@components/ClueMarkdownRenderer';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 
 import { verifyClueGeofence } from '@/lib/locationGate';
+import { queueClueAnswer } from '@/lib/syncQueue';
+
+import NetInfo from '@react-native-community/netinfo';
 
 export default function PlayScreen() {
+  const { t } = useTranslation();
+
   // Network status
   const [isOnline, setIsOnline] = useState(true);
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsOnline(state.isConnected && state.isInternetReachable);
+      setIsOnline(!!(state.isConnected && state.isInternetReachable));
     });
     return () => unsubscribe();
   }, []);
@@ -53,7 +55,6 @@ export default function PlayScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [error, setError] = useState('');
-  // Removed duplicate showToast declaration
 
   useEffect(() => {
     if (!currentProgress?.hunt_id) {
@@ -68,10 +69,10 @@ export default function PlayScreen() {
     return (
       <EmptyState
         icon="🎯"
-        title="Join a hunt first"
-        description="Register for an active hunt from the Hunts tab to unlock clue progress and transaction steps."
+        title={t('play.empty.title')}
+        description={t('play.empty.description')}
         action={{
-          label: 'Browse Hunts',
+          label: t('play.empty.cta'),
           onPress: () => router.push('/(tabs)/hunts'),
         }}
       />
@@ -84,15 +85,18 @@ export default function PlayScreen() {
 
   const progressLabel = useMemo(() => {
     if (clues.length === 0) {
-      return 'Loading clues...';
+      return t('play.progress.loading');
     }
 
     if (allSolved) {
-      return 'All clues solved';
+      return t('play.progress.allSolved');
     }
 
-    return `Clue ${activeClueIndex + 1} of ${clues.length}`;
-  }, [activeClueIndex, allSolved, clues.length]);
+    return t('play.progress.clueOf', {
+      current: activeClueIndex + 1,
+      total: clues.length,
+    });
+  }, [activeClueIndex, allSolved, clues.length, t]);
 
   const submitClueAnswer = async (submittedAnswer: string, fromQr = false) => {
     if (!activeClue || !currentProgress?.hunt_id || isSubmitting) {
@@ -102,18 +106,16 @@ export default function PlayScreen() {
     // If offline, queue the answer and update progress locally
     if (!isOnline) {
       await queueClueAnswer(currentProgress.hunt_id, activeClue.id, answer.trim());
-      // Mark clue completed locally
       markClueCompleted(currentProgress.hunt_id, activeClueIndex);
-      // Advance to next clue
       updateClueIndex(activeClueIndex + 1);
       setAnswer('');
-      showToast({ message: 'Answer queued. It will be submitted when back online.', type: 'info' });
+      showToast({ message: t('play.answer.queued'), type: 'info' });
       return;
     }
 
     if (network === 'mainnet') {
       showToast({
-        message: 'Switch wallet to Stellar Testnet before submitting final proof.',
+        message: t('play.toast.switchNetwork'),
         type: 'warning',
       });
       router.push('/network/switch');
@@ -143,7 +145,7 @@ export default function PlayScreen() {
           return;
         }
       } else if (!(await matchesClueAnswer(submittedAnswer, activeClue, currentProgress.hunt_id))) {
-        setError('Incorrect answer. Review the clue and try again.');
+        setError(t('play.answer.incorrect'));
         haptics.triggerNotification('error');
         return;
       }
@@ -191,7 +193,7 @@ export default function PlayScreen() {
           ]}
         >
           <ThemedCustomText variant="h2" color="primary" weight="800">
-            Active Hunt Session
+            {t('play.title')}
           </ThemedCustomText>
           <ThemedCustomText variant="body">{progressLabel}</ThemedCustomText>
         </View>
@@ -204,7 +206,7 @@ export default function PlayScreen() {
         >
           <View style={styles.locationHeader}>
             <ThemedCustomText variant="label" weight="700">
-              Location services
+              {t('play.location.label')}
             </ThemedCustomText>
             <Switch
               value={shareLocation}
@@ -216,13 +218,13 @@ export default function PlayScreen() {
           <ThemedCustomText variant="caption" style={styles.locationCopy}>
             {permissionGranted
               ? shareLocation
-                ? 'GPS tracking is enabled for live geofence checks and low-power updates.'
-                : 'Location sharing is paused. Clues can still be checked using a one-time GPS read.'
-              : 'Allow location access to use location-based clues and geofencing.'}
+                ? t('play.location.trackingEnabled')
+                : t('play.location.trackingPaused')
+              : t('play.location.permissionRequired')}
           </ThemedCustomText>
           {locationLoading ? (
             <ThemedCustomText variant="caption" color="warning">
-              Requesting location access…
+              {t('play.location.requesting')}
             </ThemedCustomText>
           ) : null}
           {locationError ? (
@@ -232,7 +234,10 @@ export default function PlayScreen() {
           ) : null}
           {location ? (
             <ThemedCustomText variant="caption" style={styles.locationMeta}>
-              Live coordinates: {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+              {t('play.location.liveCoords', {
+                lat: location.latitude.toFixed(4),
+                lng: location.longitude.toFixed(4),
+              })}
             </ThemedCustomText>
           ) : null}
         </View>
@@ -254,16 +259,20 @@ export default function PlayScreen() {
               ]}
             >
               <ThemedCustomText variant="label" color={isActive ? 'primary' : 'text'} weight="700">
-                {isActive ? 'Current clue' : isUnlocked ? 'Unlocked clue' : 'Locked clue'}
+                {isActive
+                  ? t('play.clue.current')
+                  : isUnlocked
+                    ? t('play.clue.unlocked')
+                    : t('play.clue.locked')}
               </ThemedCustomText>
 
-              {/* Render dynamic clue text elegantly with Markdown renderer */}
               <View style={styles.clueQuestion}>
                 <ClueMarkdownRenderer text={clue.question} />
               </View>
 
               <ThemedCustomText variant="caption" style={styles.clueMeta}>
-                {clue.points} pts {clue.hint ? `• Hint: ${clue.hint}` : ''}
+                {t('play.clue.points', { points: clue.points })}
+                {clue.hint ? ` • Hint: ${clue.hint}` : ''}
               </ThemedCustomText>
             </View>
           );
@@ -279,10 +288,10 @@ export default function PlayScreen() {
               ]}
             >
               <ThemedCustomText variant="h3" weight="700">
-                Submit answer
+                {t('play.answer.title')}
               </ThemedCustomText>
               <ThemedCustomText variant="caption" style={styles.answerCopy}>
-                The final correct answer will move you into wallet approval and Soroban consensus.
+                {t('play.answer.description')}
               </ThemedCustomText>
               <TextInput
                 value={answer}
@@ -292,7 +301,7 @@ export default function PlayScreen() {
                     setError('');
                   }
                 }}
-                placeholder="Type the exact checkpoint answer"
+                placeholder={t('play.answer.placeholder')}
                 placeholderTextColor="#94a3b8"
                 style={[styles.input, { borderColor: colors.border, color: colors.text }]}
                 autoCapitalize="none"
@@ -304,18 +313,23 @@ export default function PlayScreen() {
                 </ThemedCustomText>
               ) : null}
               <ThemedButton
-                text={isSubmitting ? 'Checking GPS...' : 'Submit answer'}
+                text={isSubmitting ? t('play.answer.checkingGps') : t('play.answer.submit')}
                 loading={isSubmitting}
                 fullWidth
                 onPress={handleSubmit}
               />
               <ThemedButton
-                text="Scan QR checkpoint"
+                text={t('play.answer.scanQr')}
                 variant="secondary"
                 fullWidth
                 onPress={() => setScannerOpen(true)}
               />
-              <ThemedButton text="Abandon hunt" variant="ghost" fullWidth onPress={clearProgress} />
+              <ThemedButton
+                text={t('play.answer.abandon')}
+                variant="ghost"
+                fullWidth
+                onPress={clearProgress}
+              />
             </View>
           </>
         ) : null}
@@ -325,7 +339,7 @@ export default function PlayScreen() {
         isOpen={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScan={handleQrScan}
-        title="Scan checkpoint QR"
+        title={t('play.qrScanner.title')}
       />
     </ThemedView>
   );
@@ -388,15 +402,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  emptyCopy: {
-    textAlign: 'center',
   },
 });

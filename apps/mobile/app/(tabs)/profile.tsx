@@ -7,6 +7,7 @@ import { useTheme } from '@providers/ThemeProvider';
 import { useWalletStore } from '@store/useStore';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 
 type Colors = ReturnType<typeof useTheme>['colors'];
@@ -81,6 +82,7 @@ function StatPill({ label, value, colors }: { label: string; value: number; colo
 }
 
 function HuntCard({ hunt, colors }: { hunt: PlayerHuntProgress; colors: Colors }) {
+  const { t } = useTranslation();
   const isCompleted = hunt.status === 'Completed';
   const statusColor = isCompleted ? colors.success : colors.warning;
 
@@ -102,26 +104,30 @@ function HuntCard({ hunt, colors }: { hunt: PlayerHuntProgress; colors: Colors }
           ]}
         >
           <ThemedCustomText variant="caption" weight="700" style={{ color: statusColor }}>
-            {isCompleted ? 'Completed' : 'In Progress'}
+            {isCompleted
+              ? t('profile.history.statusCompleted')
+              : t('profile.history.statusInProgress')}
           </ThemedCustomText>
         </View>
       </View>
 
       <View style={styles.metaRow}>
         <ThemedCustomText variant="caption">
-          Clues: {hunt.pointsEarned}/{hunt.totalClues}
+          {t('profile.history.clues', { done: hunt.pointsEarned, total: hunt.totalClues })}
         </ThemedCustomText>
-        <ThemedCustomText variant="caption">Points: {hunt.pointsEarned}</ThemedCustomText>
+        <ThemedCustomText variant="caption">
+          {t('profile.history.points', { count: hunt.pointsEarned })}
+        </ThemedCustomText>
       </View>
       <ThemedCustomText variant="caption" style={styles.muted}>
-        Started {formatISOString(hunt.startedAt)}
+        {t('profile.history.started', { date: formatISOString(hunt.startedAt) })}
       </ThemedCustomText>
       {hunt.completedAt ? (
         <ThemedCustomText variant="caption" style={styles.muted}>
-          Finished {formatISOString(hunt.completedAt)}
+          {t('profile.history.finished', { date: formatISOString(hunt.completedAt) })}
         </ThemedCustomText>
       ) : null}
-      <ThemedButton text="View details" variant="ghost" size="sm" fullWidth />
+      <ThemedButton text={t('profile.history.viewDetails')} variant="ghost" size="sm" fullWidth />
     </View>
   );
 }
@@ -160,6 +166,7 @@ function NftCard({ nft, colors }: { nft: NftRewardDetail; colors: Colors }) {
 }
 
 export default function ProfileScreen() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { colors } = useTheme();
   const { walletAddress, isConnected, watchOnlyAddress } = useWalletStore();
@@ -224,10 +231,10 @@ export default function ProfileScreen() {
     return (
       <EmptyState
         icon="👛"
-        title="Connect your wallet"
-        description="Your profile uses the connected Stellar address to load hunts played and points earned."
+        title={t('profile.empty.title')}
+        description={t('profile.empty.description')}
         action={{
-          label: 'Go to Settings',
+          label: t('profile.empty.cta'),
           onPress: () => router.push('/(tabs)/settings'),
         }}
       />
@@ -243,10 +250,10 @@ export default function ProfileScreen() {
       >
         <View style={styles.header}>
           <ThemedCustomText variant="h2" style={styles.centeredBold}>
-            Player Profile
+            {t('profile.title')}
           </ThemedCustomText>
           <ThemedCustomText variant="caption" style={styles.centeredCaption}>
-            View your hunt history, progress, and total points earned.
+            {t('profile.subtitle')}
           </ThemedCustomText>
           <View
             style={[
@@ -255,7 +262,7 @@ export default function ProfileScreen() {
             ]}
           >
             <ThemedCustomText variant="caption" style={styles.walletLabel}>
-              {usingWatchOnly ? 'Watch-only Address' : 'Connected Wallet'}
+              {usingWatchOnly ? t('profile.wallet.watchOnly') : t('profile.wallet.connected')}
             </ThemedCustomText>
             <ThemedCustomText variant="label" weight="600" style={styles.walletAddress}>
               {displayAddress}
@@ -271,30 +278,54 @@ export default function ProfileScreen() {
           <>
             <View style={styles.section}>
               <ThemedCustomText variant="h3" style={styles.sectionTitle}>
-                Summary Statistics
+                {t('profile.summary.title')}
               </ThemedCustomText>
               <View style={styles.statsGrid}>
-                <StatPill label="Total Hunts" value={summary.totalHunts} colors={colors} />
-                <StatPill label="Completed" value={summary.completedHunts} colors={colors} />
-                <StatPill label="In Progress" value={summary.inProgressHunts} colors={colors} />
-                <StatPill label="Total Points" value={summary.totalPoints} colors={colors} />
-                <StatPill label="NFT Rewards" value={summary.totalNftRewards} colors={colors} />
-                <StatPill label="Completion %" value={summary.completionRate} colors={colors} />
+                <StatPill
+                  label={t('profile.summary.totalHunts')}
+                  value={summary.totalHunts}
+                  colors={colors}
+                />
+                <StatPill
+                  label={t('profile.summary.completed')}
+                  value={summary.completedHunts}
+                  colors={colors}
+                />
+                <StatPill
+                  label={t('profile.summary.inProgress')}
+                  value={summary.inProgressHunts}
+                  colors={colors}
+                />
+                <StatPill
+                  label={t('profile.summary.totalPoints')}
+                  value={summary.totalPoints}
+                  colors={colors}
+                />
+                <StatPill
+                  label={t('profile.summary.nftRewards')}
+                  value={summary.totalNftRewards}
+                  colors={colors}
+                />
+                <StatPill
+                  label={t('profile.summary.completionPct')}
+                  value={summary.completionRate}
+                  colors={colors}
+                />
               </View>
             </View>
 
             <View style={styles.section}>
               <ThemedCustomText variant="h3" style={styles.sectionTitle}>
-                Digital Trophies
+                {t('profile.trophies.title')}
               </ThemedCustomText>
               <View style={styles.nftGrid}>
                 {nftRewards.length === 0 ? (
                   <EmptyState
                     icon="🏆"
-                    title="No trophies yet"
-                    description="Complete your first hunt to earn NFT trophies and rewards."
+                    title={t('profile.trophies.empty.title')}
+                    description={t('profile.trophies.empty.description')}
                     action={{
-                      label: 'Browse Hunts',
+                      label: t('profile.trophies.empty.cta'),
                       onPress: () => {},
                     }}
                   />
@@ -306,7 +337,7 @@ export default function ProfileScreen() {
 
             <View style={styles.section}>
               <ThemedCustomText variant="h3" style={styles.sectionTitle}>
-                Hunt History
+                {t('profile.history.title')}
               </ThemedCustomText>
               {error ? (
                 <View

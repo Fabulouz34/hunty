@@ -1,18 +1,8 @@
-import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@providers/ThemeProvider';
-import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "@providers/ThemeProvider";
-import React from "react";
-import {
-  ActivityIndicator,
-  Modal,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 type Props = {
   visible: boolean;
@@ -22,6 +12,7 @@ type Props = {
 };
 
 export function DisconnectWalletModal({ visible, onCancel, onConfirm, isLoading }: Props) {
+  const { t } = useTranslation();
   const { colors } = useTheme();
 
   return (
@@ -45,18 +36,17 @@ export function DisconnectWalletModal({ visible, onCancel, onConfirm, isLoading 
             accessibilityRole="header"
             style={[styles.title, { color: colors.text }]}
           >
-            Disconnect Wallet
+            {t('disconnectModal.title')}
           </Text>
           <Text accessible={true} style={[styles.body, { color: colors.secondary }]}>
-            You'll be signed out and your wallet will be unlinked from this device. Your assets
-            remain safe on-chain.
+            {t('disconnectModal.body')}
           </Text>
 
           <TouchableOpacity
             accessible={true}
             accessibilityRole="button"
-            accessibilityLabel="Confirm disconnect wallet"
-            accessibilityHint="Disconnects your wallet from this device"
+            accessibilityLabel={t('disconnectModal.a11y.confirmLabel')}
+            accessibilityHint={t('disconnectModal.a11y.confirmHint')}
             accessibilityState={{ disabled: isLoading, busy: isLoading }}
             style={[styles.confirmBtn, { backgroundColor: colors.error }]}
             onPress={onConfirm}
@@ -65,19 +55,21 @@ export function DisconnectWalletModal({ visible, onCancel, onConfirm, isLoading 
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.confirmText}>Yes, Disconnect</Text>
+              <Text style={styles.confirmText}>{t('disconnectModal.confirm')}</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
             accessible={true}
             accessibilityRole="button"
-            accessibilityLabel="Cancel"
-            accessibilityHint="Closes dialog without disconnecting"
+            accessibilityLabel={t('disconnectModal.a11y.cancelLabel')}
+            accessibilityHint={t('disconnectModal.a11y.cancelHint')}
             style={styles.cancelBtn}
             onPress={onCancel}
           >
-            <Text style={[styles.cancelText, { color: colors.secondary }]}>Cancel</Text>
+            <Text style={[styles.cancelText, { color: colors.secondary }]}>
+              {t('disconnectModal.cancel')}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

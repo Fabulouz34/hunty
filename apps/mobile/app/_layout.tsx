@@ -1,9 +1,11 @@
 import '../global.css';
+// Initialize i18next before any screen renders.
+import '@lib/i18n';
 
 import { MemoryDiagnosticsOverlay } from '@components/MemoryDiagnosticsOverlay';
 import { StackHeader } from '@components/navigation/StackHeader';
-import { ThemedButton,ThemedCustomText } from '@components/themed';
-import { initializeSentry,Sentry } from '@config/sentry';
+import { ThemedButton, ThemedCustomText } from '@components/themed';
+import { initializeSentry, Sentry } from '@config/sentry';
 import { useBackHandler } from '@hooks/useBackHandler';
 import { useSyncQueue } from '@hooks/useSyncQueue';
 import { ModalProvider } from '@providers/ModalProvider';
