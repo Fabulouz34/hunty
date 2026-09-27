@@ -1,4 +1,5 @@
 import { ThemedCustomText, ThemedView } from '@components/themed';
+import { useReducedMotion } from '@hooks/useReducedMotion';
 import type { StoredHunt } from '@lib/types';
 import { useTheme } from '@providers/ThemeProvider';
 import { getActiveHuntsForFeed } from '@store/huntStore';
@@ -34,6 +35,7 @@ export function OptimizedHuntFeed({
 }: OptimizedHuntFeedProps) {
   const router = useRouter();
   const { colors } = useTheme();
+  const reduceMotion = useReducedMotion();
   const flatListRef = useRef<FlatList<ListItem>>(null);
   const [displayCount, setDisplayCount] = useState(INITIAL_PAGE_SIZE);
   const [localRefreshing, setLocalRefreshing] = useState(false);
@@ -173,7 +175,7 @@ export function OptimizedHuntFeed({
                 contentFit="cover"
                 recyclingKey={`hunt-cover-${hunt.id}`}
                 cachePolicy="memory-disk"
-                transition={200}
+                transition={reduceMotion ? 0 : 200}
               />
             )}
             <View style={styles.cardContent}>
@@ -193,7 +195,7 @@ export function OptimizedHuntFeed({
         </Pressable>
       );
     },
-    [colors],
+    [colors, reduceMotion],
   );
 
   const renderFooter = useCallback(() => {
