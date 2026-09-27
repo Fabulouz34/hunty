@@ -13,6 +13,8 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { verifyClueGeofence } from '@/lib/locationGate';
+import { matchesClueAnswer } from '@lib/clueAnswerVerification';
+import { verifyQrAgainstClue } from '@lib/qrCodeDecryptor';
 
 export default function NestedScreen() {
   const router = useRouter();
