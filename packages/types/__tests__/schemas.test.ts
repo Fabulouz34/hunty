@@ -19,6 +19,7 @@ import type { Achievement, AchievementId, AchievementRarity, Clue, ClueDifficult
 // ── Type compatibility assertions ─────────────────────────────────────────
 // Compile-time checks that each schema infers to the same shape as its TS interface.
 // These are pure type-level: if the types drift apart the project won't compile.
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 type RewardInfer = z.infer<typeof rewardSchema>
 type _RewardCheck = RewardInfer extends Reward ? Reward extends RewardInfer ? true : false : false
@@ -83,15 +84,21 @@ describe("rewardTypeSchema", () => {
 
 describe("huntStatusSchema", () => {
   it("accepts all valid hunt statuses", () => {
-    expect(huntStatusSchema.safeParse("Active").success).toBe(true)
-    expect(huntStatusSchema.safeParse("Completed").success).toBe(true)
-    expect(huntStatusSchema.safeParse("Draft").success).toBe(true)
-    expect(huntStatusSchema.safeParse("Cancelled").success).toBe(true)
+    for (const status of [
+      "Active", "Completed", "Draft", "Cancelled",
+      "PendingReview", "Scheduled", "Ended",
+    ]) {
+      expect(huntStatusSchema.safeParse(status).success).toBe(true)
+    }
   })
 
   it("rejects invalid hunt statuses", () => {
     expect(huntStatusSchema.safeParse("Paused").success).toBe(false)
+    expect(huntStatusSchema.safeParse("Archived").success).toBe(false)
     expect(huntStatusSchema.safeParse("active").success).toBe(false)
+    expect(huntStatusSchema.safeParse("scheduled").success).toBe(false)
+    expect(huntStatusSchema.safeParse("ended").success).toBe(false)
+    expect(huntStatusSchema.safeParse("pending_review").success).toBe(false)
     expect(huntStatusSchema.safeParse("").success).toBe(false)
     expect(huntStatusSchema.safeParse(null).success).toBe(false)
     expect(huntStatusSchema.safeParse(undefined).success).toBe(false)
@@ -288,7 +295,10 @@ describe("storedHuntSchema", () => {
   })
 
   it("accepts all status values", () => {
-    for (const status of ["Active", "Completed", "Draft", "Cancelled"]) {
+    for (const status of [
+      "Active", "Completed", "Draft", "Cancelled",
+      "PendingReview", "Scheduled", "Ended",
+    ]) {
       expect(storedHuntSchema.safeParse({ ...validHunt, status }).success).toBe(true)
     }
   })
@@ -556,7 +566,7 @@ describe("schemas convenience map", () => {
   })
 
   it("each entry is a valid Zod schema", () => {
-    for (const [key, schema] of Object.entries(schemas)) {
+    for (const [_key, schema] of Object.entries(schemas)) {
       expect(typeof schema.parse).toBe("function")
       expect(typeof schema.safeParse).toBe("function")
     }
@@ -580,5 +590,140 @@ describe("schemas convenience map", () => {
 
   it("achievement schema in map matches standalone", () => {
     expect(schemas.achievement).toBe(achievementSchema)
+  })
+})
+
+// ── storedHuntSchema — #1173 gracePeriodSeconds ───────────────────────────
+
+describe("storedHuntSchema — gracePeriodSeconds (#1173)", () => {
+  const base = {
+    id: 1,
+    title: "Test Hunt",
+    description: "Desc",
+    cluesCount: 3,
+    status: "Active",
+    rewardType: "XLM",
+  }
+
+  it("accepts a hunt without gracePeriodSeconds (optional field)", () => {
+    expect(storedHuntSchema.safeParse(base).success).toBe(true)
+  })
+
+  it("accepts a valid gracePeriodSeconds value", () => {
+    expect(storedHuntSchema.safeParse({ ...base, gracePeriodSeconds: 604800 }).success).toBe(true)
+  })
+
+  it("accepts gracePeriodSeconds of 0 (immediate refund allowed once expired)", () => {
+    expect(storedHuntSchema.safeParse({ ...base, gracePeriodSeconds: 0 }).success).toBe(true)
+  })
+
+  it("rejects negative gracePeriodSeconds", () => {
+    expect(storedHuntSchema.safeParse({ ...base, gracePeriodSeconds: -1 }).success).toBe(false)
+  })
+
+  it("rejects non-integer gracePeriodSeconds", () => {
+    expect(storedHuntSchema.safeParse({ ...base, gracePeriodSeconds: 3.14 }).success).toBe(false)
+  })
+
+  it("rejects string gracePeriodSeconds", () => {
+    expect(storedHuntSchema.safeParse({ ...base, gracePeriodSeconds: "604800" }).success).toBe(false)
+  })
+})
+
+// ── storedHuntSchema — #1175 sponsors ────────────────────────────────────
+
+describe("storedHuntSchema — sponsors (#1175)", () => {
+  const base = {
+    id: 1,
+    title: "Sponsored Hunt",
+    description: "Desc",
+    cluesCount: 3,
+    status: "Active",
+    rewardType: "XLM",
+  }
+
+  it("accepts a hunt without sponsors (optional field)", () => {
+    expect(storedHuntSchema.safeParse(base).success).toBe(true)
+  })
+
+  it("accepts an empty sponsors array", () => {
+    expect(storedHuntSchema.safeParse({ ...base, sponsors: [] }).success).toBe(true)
+  })
+
+  it("accepts a populated sponsors array of strings", () => {
+    expect(
+      storedHuntSchema.safeParse({
+        ...base,
+        sponsors: [
+          "GSPONSOR1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+          "GSPONSOR2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        ],
+      }).success
+    ).toBe(true)
+  })
+
+  it("rejects sponsors that is not an array", () => {
+    expect(storedHuntSchema.safeParse({ ...base, sponsors: "GSPONSOR1" }).success).toBe(false)
+  })
+
+  it("rejects a sponsors array containing non-strings", () => {
+    expect(storedHuntSchema.safeParse({ ...base, sponsors: [1, 2] }).success).toBe(false)
+  })
+})
+
+// ── huntRefundBodySchema (#1173) ──────────────────────────────────────────
+
+import { huntRefundBodySchema, huntSponsorBodySchema } from "../src/api-schemas"
+
+describe("huntRefundBodySchema (#1173)", () => {
+  it("accepts a valid creatorAddress", () => {
+    expect(
+      huntRefundBodySchema.safeParse({ creatorAddress: "GCREATOR1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" }).success
+    ).toBe(true)
+  })
+
+  it("rejects an empty creatorAddress", () => {
+    expect(huntRefundBodySchema.safeParse({ creatorAddress: "" }).success).toBe(false)
+  })
+
+  it("rejects a missing creatorAddress", () => {
+    expect(huntRefundBodySchema.safeParse({}).success).toBe(false)
+  })
+})
+
+// ── huntSponsorBodySchema (#1175) ─────────────────────────────────────────
+
+describe("huntSponsorBodySchema (#1175)", () => {
+  const valid = {
+    sponsorAddress: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    amount: 100,
+  }
+
+  it("accepts a valid sponsor address and positive amount", () => {
+    expect(huntSponsorBodySchema.safeParse(valid).success).toBe(true)
+  })
+
+  it("rejects a non-Stellar sponsorAddress", () => {
+    expect(huntSponsorBodySchema.safeParse({ ...valid, sponsorAddress: "not-a-stellar-address" }).success).toBe(false)
+  })
+
+  it("rejects a zero amount", () => {
+    expect(huntSponsorBodySchema.safeParse({ ...valid, amount: 0 }).success).toBe(false)
+  })
+
+  it("rejects a negative amount", () => {
+    expect(huntSponsorBodySchema.safeParse({ ...valid, amount: -50 }).success).toBe(false)
+  })
+
+  it("rejects a missing amount", () => {
+    expect(huntSponsorBodySchema.safeParse({ sponsorAddress: valid.sponsorAddress }).success).toBe(false)
+  })
+
+  it("rejects a missing sponsorAddress", () => {
+    expect(huntSponsorBodySchema.safeParse({ amount: 100 }).success).toBe(false)
+  })
+
+  it("rejects a string amount", () => {
+    expect(huntSponsorBodySchema.safeParse({ ...valid, amount: "100" }).success).toBe(false)
   })
 })

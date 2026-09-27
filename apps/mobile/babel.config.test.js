@@ -8,7 +8,7 @@ module.exports = {
         root: ['.'],
         alias: {
           '@': './',
-          '@lib': '../lib',
+          '@lib': './lib',
           '@store': './store',
           '@providers': './providers',
           '@components': './components',
@@ -17,6 +17,9 @@ module.exports = {
           '@services': './services',
           '@hooks': './hooks',
           '@app': './app',
+          '@hunty/types': '../../packages/types/src',
+          '@hunty/ui': '../../packages/ui/src',
+          '@hunty/ui/toast': '../../packages/ui/src/toast',
         },
       },
     ],

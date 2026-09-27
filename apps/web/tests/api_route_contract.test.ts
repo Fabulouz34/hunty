@@ -95,6 +95,9 @@ vi.mock("@/lib/moderation/dbStore", () => ({
   rejectSubmission: vi.fn(),
   flagContentPolicyViolation: vi.fn(),
   submitHuntForModeration: vi.fn(),
+  getCreatorNotifications: async () => [],
+  getModerationStatusForHunts: async () => ({}),
+  markNotificationRead: async () => true,
 }))
 
 vi.mock("@/lib/moderation/email", () => ({
@@ -125,6 +128,14 @@ vi.mock("@/lib/logger", () => ({
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
   captureEvent: vi.fn(),
+}))
+
+vi.mock("@/lib/answerDisputes", () => ({
+  getAnswerDisputesForAnswer: () => [],
+  getAnswerDisputeById: () => null,
+  getAnswerDisputeAuditLog: () => [],
+  createAnswerDispute: vi.fn(),
+  resolveAnswerDispute: vi.fn(),
 }))
 
 interface RouteEntry {
@@ -178,7 +189,7 @@ const ROUTE_MANIFEST: RouteEntry[] = [
 
   // ── moderation ───────────────────────────────────────────────────────
   { file: "moderation/submit/route.ts",             path: "/api/moderation/submit",             methods: ["POST"],          auth: "public" },
-  { file: "moderation/sync/route.ts",               path: "/api/moderation/sync",               methods: ["GET", "POST"],   auth: "public" },
+  { file: "moderation/sync/route.ts",               path: "/api/moderation/sync",               methods: ["GET", "POST"],   auth: "admin" },
 
   // ── notifications ────────────────────────────────────────────────────
   { file: "notifications/complete/route.tsx",       path: "/api/notifications/complete",        methods: ["POST"],          auth: "public" },
@@ -186,26 +197,37 @@ const ROUTE_MANIFEST: RouteEntry[] = [
   // ── og ───────────────────────────────────────────────────────────────
   { file: "og/hunt/[id]/route.ts",                  path: "/api/og/hunt/[id]",                  methods: ["GET"],           auth: "public" },
   { file: "og/leaderboard/route.ts",                path: "/api/og/leaderboard",                methods: ["GET"],           auth: "public" },
+  { file: "og/result/route.ts",                     path: "/api/og/result",                     methods: ["GET"],           auth: "public" },
 
   // ── push ─────────────────────────────────────────────────────────────
-  { file: "push/send/route.ts",                     path: "/api/push/send",                     methods: ["POST"],          auth: "public" },
+  // Requires PUSH_API_SECRET or ADMIN_API_SECRET as a bearer token; see
+  // app/api/push/send/route.ts and its __tests__ for the credential checks.
+  { file: "push/send/route.ts",                     path: "/api/push/send",                     methods: ["POST"],          auth: "admin" },
 
   // ── push-tokens ──────────────────────────────────────────────────────
   { file: "push-tokens/route.ts",                   path: "/api/push-tokens",                   methods: ["GET", "POST", "DELETE"], auth: "public" },
 
   // ── v1 / answers ─────────────────────────────────────────────────────
   { file: "v1/answers/route.ts",                    path: "/api/v1/answers",                    methods: ["POST"],          auth: "public" },
+  // Deprecated shims – redirect / 410 to canonical answers/disputes routes
+  { file: "v1/answers/[id]/dispute/route.ts",       path: "/api/v1/answers/[id]/dispute",       methods: ["GET", "POST"],   auth: "public", noBody: true },
+  { file: "v1/answers/[id]/dispute/audit/route.ts", path: "/api/v1/answers/[id]/dispute/audit", methods: ["GET"],           auth: "public" },
+  // Canonical dispute routes
+  { file: "v1/answers/disputes/route.ts",           path: "/api/v1/answers/disputes",           methods: ["GET", "POST"],   auth: "public" },
+  { file: "v1/answers/disputes/[id]/route.ts",      path: "/api/v1/answers/disputes/[id]",      methods: ["GET", "PATCH"],  auth: "public" },
+  { file: "v1/answers/disputes/[id]/audit/route.ts",path: "/api/v1/answers/disputes/[id]/audit",methods: ["GET"],           auth: "public" },
 
   // ── v1 / feature-flags ───────────────────────────────────────────────
   { file: "v1/feature-flags/route.ts",              path: "/api/v1/feature-flags",              methods: ["GET"],           auth: "public" },
 
   // ── v1 / hunts ───────────────────────────────────────────────────────
   { file: "v1/hunts/route.ts",                      path: "/api/v1/hunts",                      methods: ["GET"],           auth: "public" },
-  { file: "v1/hunts/id/route.ts",                   path: "/api/v1/hunts/id",                   methods: ["GET"],           auth: "public" },
   { file: "v1/hunts/bulk/route.ts",                 path: "/api/v1/hunts/bulk",                 methods: ["POST"],          auth: "public" },
   { file: "v1/hunts/[id]/route.ts",                 path: "/api/v1/hunts/[id]",                 methods: ["GET"],           auth: "public" },
   { file: "v1/hunts/[id]/archive/route.ts",         path: "/api/v1/hunts/[id]/archive",         methods: ["POST"],          auth: "public" },
   { file: "v1/hunts/[id]/collaborators/route.ts",   path: "/api/v1/hunts/[id]/collaborators",   methods: ["GET", "POST"],   auth: "public" },
+  { file: "v1/hunts/[id]/collaborators/presence/route.ts", path: "/api/v1/hunts/[id]/collaborators/presence", methods: ["GET", "POST"], auth: "public" },
+  { file: "v1/hunts/[id]/collaborators/presence/stream/route.ts", path: "/api/v1/hunts/[id]/collaborators/presence/stream", methods: ["GET"], auth: "public" },
   { file: "v1/hunts/[id]/complete/route.ts",        path: "/api/v1/hunts/[id]/complete",        methods: ["POST"],          auth: "public" },
   { file: "v1/hunts/[id]/delete/route.ts",          path: "/api/v1/hunts/[id]/delete",          methods: ["POST"],          auth: "public" },
   { file: "v1/hunts/[id]/leaderboard/route.ts",     path: "/api/v1/hunts/[id]/leaderboard",     methods: ["GET"],           auth: "public" },
@@ -218,7 +240,10 @@ const ROUTE_MANIFEST: RouteEntry[] = [
   { file: "v1/hunts/[id]/reviews/[reviewId]/moderate/route.ts", path: "/api/v1/hunts/[id]/reviews/[reviewId]/moderate", methods: ["POST"], auth: "public" },
 
   // ── v1 / seasons ─────────────────────────────────────────────────────
-  { file: "v1/seasons/route.ts",                    path: "/api/v1/seasons",                    methods: ["GET", "POST"],   auth: "public" },
+  // GET is public; POST requires a signed wallet challenge from an address in
+  // ADMIN_WALLET_ADDRESSES or the ADMIN_API_SECRET bearer token — see
+  // app/api/v1/seasons/route.ts and its __tests__ for the credential checks.
+  { file: "v1/seasons/route.ts",                    path: "/api/v1/seasons",                    methods: ["GET", "POST"],   auth: "admin" },
   { file: "v1/seasons/[id]/route.ts",               path: "/api/v1/seasons/[id]",               methods: ["GET", "POST", "PATCH"], auth: "public" },
   { file: "v1/seasons/archived/route.ts",           path: "/api/v1/seasons/archived",           methods: ["GET"],           auth: "public" },
   { file: "v1/seasons/badges/route.ts",             path: "/api/v1/seasons/badges",             methods: ["GET", "POST"],   auth: "public" },
@@ -228,6 +253,11 @@ const ROUTE_MANIFEST: RouteEntry[] = [
 
   // ── v1 / time ────────────────────────────────────────────────────────
   { file: "v1/time/route.ts",                       path: "/api/v1/time",                       methods: ["GET"],           auth: "public" },
+
+  // ── v1 / webhooks ────────────────────────────────────────────────────
+  { file: "v1/webhooks/route.ts",                  path: "/api/v1/webhooks",                  methods: ["GET", "POST"],   auth: "public" },
+  { file: "v1/webhooks/[id]/route.ts",             path: "/api/v1/webhooks/[id]",             methods: ["PATCH", "DELETE"], auth: "public" },
+  { file: "v1/webhooks/events/route.ts",           path: "/api/v1/webhooks/events",           methods: ["POST"],          auth: "public" },
 ]
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -290,6 +320,25 @@ describe("API route manifest", () => {
   })
 
   // ── Auth classification ───────────────────────────────────────────────
+
+  describe("OG hunt route ownership", () => {
+    it("keeps exactly one handler for /api/og/hunt/[id]", () => {
+      const ogRouteFiles = routeFiles
+        .map((file) => file.replace(/\\/g, "/"))
+        .filter((file) => file.startsWith("og/hunt/[id]/route."))
+
+      expect(ogRouteFiles).toEqual(["og/hunt/[id]/route.ts"])
+      expect(
+        ROUTE_MANIFEST.filter((entry) => entry.path === "/api/og/hunt/[id]"),
+      ).toEqual([
+        expect.objectContaining({
+          file: "og/hunt/[id]/route.ts",
+          methods: ["GET"],
+          auth: "public",
+        }),
+      ])
+    })
+  })
 
   describe("auth classification", () => {
     for (const entry of ROUTE_MANIFEST) {
