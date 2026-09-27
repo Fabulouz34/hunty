@@ -23,6 +23,7 @@ vi.mock("@/lib/progressData", () => ({
 vi.mock("@/lib/rate-limit", () => ({
   getIP: () => "127.0.0.1",
   rateLimit: () => Promise.resolve({ success: true, remaining: 60, reset: Date.now() + 60000 }),
+  rateLimitPresets: { read: { limit: 60, windowMs: 60 * 1000 } },
   rateLimitResponse: () => {
     return { status: 429 } as any;
   },

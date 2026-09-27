@@ -8,15 +8,17 @@
  */
 
 import webpush, { type PushSubscription as WebPushSubscription } from "web-push"
+
 import { logger } from "@/lib/logger"
+
 import { getStoredNotificationPreferences } from "./notificationPreferencesStore"
-import type { PushEventType, PushPayload, WebPushSubscriptionRecord } from "./types"
-import { PUSH_EVENT_PREFERENCE_KEY } from "./types"
 import {
-  getSubscriptionsForWallet,
   getSubscriptionsByWallets,
+  getSubscriptionsForWallet,
   removeSubscription,
 } from "./subscriptionStore"
+import type { PushEventType, PushPayload, WebPushSubscriptionRecord } from "./types"
+import { PUSH_EVENT_PREFERENCE_KEY } from "./types"
 
 // ─── VAPID Configuration ──────────────────────────────────────────────────────
 

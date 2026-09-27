@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { getAnswerDisputeAuditLog, getAnswerDisputeById, resolveAnswerDispute } from "@/lib/answerDisputes"
 import { ValidationError } from "@/lib/api/errors"
 import { withErrorHandling } from "@/lib/api/withErrorHandling"
-import { getAnswerDisputeAuditLog, getAnswerDisputeById, resolveAnswerDispute } from "@/lib/answerDisputes"
 import { getHuntById } from "@/lib/huntStore"
 import { verifyCallerAuth } from "@/lib/walletAuth"
 

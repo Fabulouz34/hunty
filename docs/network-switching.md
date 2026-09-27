@@ -38,16 +38,16 @@ The active network is resolved from the user's saved preference, then the enviro
 
 ### Key files
 
-| File | Purpose |
-| --- | --- |
-| `lib/soroban/client.ts` | Network configuration and RPC URL / passphrase resolution |
-| `lib/contracts/config.ts` | Contract address resolution per network |
-| `lib/wallets/networkDetection.ts` | Wallet network detection and validation |
-| `hooks/useNetwork.ts` | React hook exposing network state and `switchNetwork()` |
-| `components/NetworkIndicator.tsx` | Network badge and testnet warning UI |
-| `components/NetworkSwitcher.tsx` | Network selection UI |
-| `components/NetworkMismatchWarning.tsx` | Wallet/app mismatch warning |
-| `app/settings/page.tsx` | Settings page hosting the switcher |
+| File                                    | Purpose                                                   |
+| --------------------------------------- | --------------------------------------------------------- |
+| `lib/soroban/client.ts`                 | Network configuration and RPC URL / passphrase resolution |
+| `lib/contracts/config.ts`               | Contract address resolution per network                   |
+| `lib/wallets/networkDetection.ts`       | Wallet network detection and validation                   |
+| `hooks/useNetwork.ts`                   | React hook exposing network state and `switchNetwork()`   |
+| `components/NetworkIndicator.tsx`       | Network badge and testnet warning UI                      |
+| `components/NetworkSwitcher.tsx`        | Network selection UI                                      |
+| `components/NetworkMismatchWarning.tsx` | Wallet/app mismatch warning                               |
+| `app/settings/page.tsx`                 | Settings page hosting the switcher                        |
 
 ## Quick reference
 
@@ -68,52 +68,52 @@ location.reload()
 
 ```typescript
 // Network hook
-import { useNetwork } from "@/hooks/useNetwork"
+import { useNetwork } from "@/hooks/useNetwork";
 
 // Network utilities
 import {
   getSorobanNetworkType,
   setSorobanNetworkType,
   getCurrentNetworkConfig,
-} from "@/lib/soroban/client"
+} from "@/lib/soroban/client";
 
 // Contract addresses
-import { getContracts, getRequiredAddress } from "@/lib/contracts/config"
+import { getContracts, getRequiredAddress } from "@/lib/contracts/config";
 
 // Wallet validation
 import {
   checkWalletNetworkMatch,
   validateNetworkBeforeTransaction,
-} from "@/lib/wallets/networkDetection"
+} from "@/lib/wallets/networkDetection";
 
 // Components
-import { NetworkIndicator, TestnetWarning } from "@/components/NetworkIndicator"
-import { NetworkSwitcher } from "@/components/NetworkSwitcher"
-import { NetworkMismatchWarning } from "@/components/NetworkMismatchWarning"
+import { NetworkIndicator, TestnetWarning } from "@/components/NetworkIndicator";
+import { NetworkSwitcher } from "@/components/NetworkSwitcher";
+import { NetworkMismatchWarning } from "@/components/NetworkMismatchWarning";
 ```
 
 ### Common patterns
 
 ```typescript
 // Current network
-const { networkType, isTestnet, isMainnet, switchNetwork } = useNetwork()
-switchNetwork("mainnet") // or "testnet"
+const { networkType, isTestnet, isMainnet, switchNetwork } = useNetwork();
+switchNetwork("mainnet"); // or "testnet"
 
 // Contract for the active network
-const contracts = getContracts()
-const coreAddress = contracts.HUNTY_CORE
+const contracts = getContracts();
+const coreAddress = contracts.HUNTY_CORE;
 
 // Validate before signing a transaction
-const { valid, error } = await validateNetworkBeforeTransaction("freighter")
+const { valid, error } = await validateNetworkBeforeTransaction("freighter");
 if (!valid) {
-  alert(error?.message)
-  return
+  alert(error?.message);
+  return;
 }
 
 // Check for a mismatch
-const mismatch = await checkWalletNetworkMatch("freighter")
+const mismatch = await checkWalletNetworkMatch("freighter");
 if (mismatch) {
-  console.warn(`App: ${mismatch.appNetwork}, Wallet: ${mismatch.walletNetwork}`)
+  console.warn(`App: ${mismatch.appNetwork}, Wallet: ${mismatch.walletNetwork}`);
 }
 ```
 
@@ -201,12 +201,12 @@ function MyComponent() {
 ```
 
 ```typescript
-import { getContracts, getRequiredAddress } from "@/lib/contracts/config"
+import { getContracts, getRequiredAddress } from "@/lib/contracts/config";
 
-const contracts = getContracts()
-console.log(contracts.HUNTY_CORE, contracts.REWARD_MANAGER, contracts.NFT_REWARD)
+const contracts = getContracts();
+console.log(contracts.HUNTY_CORE, contracts.REWARD_MANAGER, contracts.NFT_REWARD);
 
-const rewardManager = getRequiredAddress("REWARD_MANAGER") // throws if unset
+const rewardManager = getRequiredAddress("REWARD_MANAGER"); // throws if unset
 ```
 
 ## Architecture
@@ -345,19 +345,19 @@ NEXT_PUBLIC_NFT_REWARD_ADDRESS_MAINNET=CPQR...
 ### Unit and E2E snippets
 
 ```typescript
-import { getSorobanNetworkType, setSorobanNetworkType } from "@/lib/soroban/client"
+import { getSorobanNetworkType, setSorobanNetworkType } from "@/lib/soroban/client";
 
 test("network persists", () => {
-  setSorobanNetworkType("mainnet")
-  expect(getSorobanNetworkType()).toBe("mainnet")
-})
+  setSorobanNetworkType("mainnet");
+  expect(getSorobanNetworkType()).toBe("mainnet");
+});
 ```
 
 ```typescript
-await page.goto("/settings")
-await page.click('text=Mainnet')
-await page.click('text=Switch & Reload')
-await expect(page.locator('[data-testid="network-indicator"]')).toContainText("MAINNET")
+await page.goto("/settings");
+await page.click("text=Mainnet");
+await page.click("text=Switch & Reload");
+await expect(page.locator('[data-testid="network-indicator"]')).toContainText("MAINNET");
 ```
 
 For the full testing walkthrough, see [`TEST_NETWORK_SWITCHING.md`](../TEST_NETWORK_SWITCHING.md).

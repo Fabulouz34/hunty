@@ -7,18 +7,18 @@
  */
 
 import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import { ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { withValidation } from "@/lib/api/withValidation";
-import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
 import {
   followCreator,
   getFollowersCount,
   isFollowing,
   unfollowCreator,
 } from "@/lib/follows";
-import { z } from "zod";
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
 
 type Context = { params: Promise<{ id: string }> };
 

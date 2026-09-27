@@ -1,6 +1,6 @@
 "use client";
 
-import { TOAST_MOBILE_BREAKPOINT_PX, ToastPosition, resolveToastPosition } from "@hunty/ui/toast";
+import { resolveToastPosition,TOAST_MOBILE_BREAKPOINT_PX, ToastPosition } from "@hunty/ui/toast";
 import { useEffect, useState } from "react";
 
 export function useToastPosition(): ToastPosition {

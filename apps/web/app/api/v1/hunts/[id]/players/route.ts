@@ -2,13 +2,13 @@ import { NextResponse } from "next/server"
 
 import { ValidationError } from "@/lib/api/errors"
 import { withErrorHandling } from "@/lib/api/withErrorHandling"
-import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit"
 import {
-  getAllProgressForHunt,
   getActivePlayersForHunt,
+  getAllProgressForHunt,
   getCompletedPlayersForHunt,
   StoredProgressEntry,
 } from "@/lib/progressData"
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit"
 
 const PLAYER_PAGE_SIZE = 20
 

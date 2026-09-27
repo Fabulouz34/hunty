@@ -10,8 +10,10 @@
  * another wallet's draft.
  */
 
-import { NextResponse } from "next/server";
+import { draftPatchBodySchema } from "@hunty/types/api-schemas";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
 
 import { NotFoundError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
@@ -19,8 +21,6 @@ import { withValidation } from "@/lib/api/withValidation";
 import { getDb } from "@/lib/db";
 import type { HuntDraftSave } from "@/lib/types";
 import { verifyCallerAuth } from "@/lib/walletAuth";
-import { draftPatchBodySchema } from "@hunty/types/api-schemas";
-import { z } from "zod";
 
 type Context = { params: Promise<{ draftId: string }> };
 

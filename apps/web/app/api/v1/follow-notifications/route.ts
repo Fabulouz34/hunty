@@ -8,8 +8,8 @@ import { NextResponse } from "next/server";
 
 import { ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
-import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
 import { getFollowNotifications } from "@/lib/follows";
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
 
 export const GET = withErrorHandling(async (req: Request) => {
   const ip = getIP(req);

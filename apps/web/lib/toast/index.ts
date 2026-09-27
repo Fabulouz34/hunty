@@ -1,3 +1,4 @@
+export type { NotifyOptions } from "./notify";
 export {
   buildExplorerToastOptions,
   explorerActionForUrl,
@@ -5,5 +6,4 @@ export {
   openExplorerUrl,
   toSonnerOptions,
 } from "./notify";
-export type { NotifyOptions } from "./notify";
 export { useToastPosition } from "./useToastPosition";
