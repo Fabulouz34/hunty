@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { isValidClueAnswer } from "@/lib/clueAnswerValidation"
 import { matchesClueAnswer } from "@/lib/clueAnswerVerification"
+import { ClueMarkdownRenderer } from "@/components/ClueMarkdownRenderer"
 import type { Clue } from "@/lib/types"
 
 interface PreviewClueCardProps {
@@ -131,9 +132,7 @@ export function PreviewClueCard({
 
       {/* Question */}
       <div className="px-6 pb-4">
-        <p className="text-slate-800 text-base font-medium leading-relaxed">
-          {clue.question}
-        </p>
+        <ClueMarkdownRenderer question={clue.question} />
       </div>
 
       {/* Solved overlay */}

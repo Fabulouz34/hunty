@@ -400,6 +400,7 @@ export function PlayGame({
                     totalHunts={hunts.length}
                     points={hunts[currentCardIndex - 1].points}
                     solved={solvedClues.has(hunts[currentCardIndex - 1].id)}
+                    renderTitleAsMarkdown
                   />
                 </div>
               </div>
@@ -419,6 +420,7 @@ export function PlayGame({
                 totalHunts={hunts.length}
                 points={hunts[currentCardIndex]?.points}
                 huntEnded={huntEnded}
+                renderTitleAsMarkdown
               />
             </div>
 
@@ -435,6 +437,7 @@ export function PlayGame({
                       preview={true}
                       currentIndex={currentCardIndex + index + 2}
                       totalHunts={hunts.length}
+                      renderTitleAsMarkdown
                     />
                   </div>
                 ))}

@@ -24,6 +24,7 @@ import type { CoverImageUploadState, HuntDraft } from "@/lib/types";
 
 import { ClueSortList } from "./ClueSortList";
 import { HuntCards } from "./HuntCards";
+import { RichTextEditor } from "./RichTextEditor";
 import ToggleSwitch from "./ToggleButton";
 import { useIsFeatureEnabled } from "@/hooks/useFeatureFlag";
 import { attachMediaTypeToCid } from "@/lib/clueMedia";
@@ -471,16 +472,18 @@ export function HuntForm({
                       control={control}
                       name={`clues.${index}.question`}
                       render={({ field: f }) => (
-                        <Input
-                          placeholder="Riddle / Question"
-                          aria-label={`Clue ${index + 1} Question`}
-                          aria-describedby={
+                        <RichTextEditor
+                          id={`clue-${index}-question`}
+                          value={f.value}
+                          onChange={f.onChange}
+                          placeholder="Riddle / Question — supports **bold**, _italic_, images, and more"
+                          ariaLabel={`Clue ${index + 1} Question`}
+                          minRows={3}
+                          className={
                             errors.clues?.[index]?.question
-                              ? `clue-${index}-question-error`
+                              ? "border-red-400"
                               : undefined
                           }
-                          {...f}
-                          className="pl-3 py-2 text-sm"
                         />
                       )}
                     />

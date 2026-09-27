@@ -16,6 +16,7 @@ import { resolveImageSrc, GATEWAY_COUNT } from "@/lib/ipfs";
 import { getClueMediaKind, getClueMediaSource } from "@/lib/clueMedia";
 import type { HuntCard as Hunt } from "@/lib/types";
 import { usePlayerCount } from "@/hooks/usePlayerCount";
+import { ClueMarkdownRenderer } from "@/components/ClueMarkdownRenderer";
 
 export type { Hunt };
 
@@ -48,6 +49,12 @@ interface HuntCardsProps {
   isTrending?: boolean;
   playerAddress?: string;
   attemptId?: string;
+  /**
+   * When true, `hunt.title` is treated as a markdown string (clue question)
+   * and rendered via ClueMarkdownRenderer instead of as plain text.
+   * Set this when HuntCards is used in play mode where title = clue.question.
+   */
+  renderTitleAsMarkdown?: boolean;
 }
 
 const DEFAULT_POINTS = 10;
@@ -85,6 +92,7 @@ export const HuntCards: React.FC<HuntCardsProps> = ({
   isTrending: isTrendingProp,
   playerAddress,
   attemptId,
+  renderTitleAsMarkdown = false,
 }) => {
   const hunt = hunts && hunts.length > 0 ? hunts[0] : {} as Hunt;
 
@@ -367,7 +375,14 @@ export const HuntCards: React.FC<HuntCardsProps> = ({
           )}
         </span>
         <h3 className="text-lg sm:text-xl font-bold mb-2 sm:mb-3 line-clamp-2 print:text-3xl print:mb-4">
-          {hunt.title || "Untitled Hunt"}
+          {renderTitleAsMarkdown ? (
+            <ClueMarkdownRenderer
+              question={hunt.title || ""}
+              className="text-white dark:text-white font-bold"
+            />
+          ) : (
+            hunt.title || "Untitled Hunt"
+          )}
         </h3>
         <p className="text-xs sm:text-sm opacity-90 mb-4 sm:mb-6 line-clamp-3 print:text-lg print:opacity-100 print:mb-8" dangerouslySetInnerHTML={{ __html: sanitizeHtml(hunt.description || "No description provided.") }} />
         <div className="flex justify-center">
