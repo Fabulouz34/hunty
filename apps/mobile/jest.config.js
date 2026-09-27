@@ -20,6 +20,13 @@ module.exports = {
   ],
   setupFiles: ['<rootDir>/__mocks__/jestSetup.js'],
 
+  // babel emits `@babel/runtime/helpers/*` requires, and react-native's own
+  // entry point requires them too, but nothing in this workspace declares
+  // `@babel/runtime`. Node would still resolve it through pnpm's hidden
+  // hoisted store; Jest's resolver walks only the visible `node_modules`
+  // chain, so it has to be told where that store is.
+  modulePaths: ['<rootDir>/../../node_modules/.pnpm/node_modules'],
+
   transform: {
     '^.+\\.[jt]sx?$': [
       'babel-jest',
@@ -48,6 +55,8 @@ module.exports = {
     '^@lib/(.*)$': '<rootDir>/../web/lib/$1',
     '^@utils/(.*)$': '<rootDir>/utils/$1',
     '^@components/(.*)$': '<rootDir>/components/$1',
+    '^@hunty/types$': '<rootDir>/../../packages/types/src/index.ts',
+    '^@hunty/types/(.*)$': '<rootDir>/../../packages/types/src/$1',
     '^@/(.*)$': '<rootDir>/$1',
     // Mock assets
     '\\.(png|jpg|jpeg|gif|svg|ico|webp|ttf|otf)$': '<rootDir>/__mocks__/fileMock.js',
