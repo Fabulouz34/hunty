@@ -5,7 +5,7 @@ import {
   archiveSeason,
   getCurrentSeasonLeaderboard,
 } from "@/lib/seasonStore";
-import { rateLimit, getIP, rateLimitResponse } from "@/lib/rate-limit";
+import { rateLimit, rateLimitPresets, getIP, rateLimitResponse } from "@/lib/rate-limit";
 import { AuthError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { withValidation } from "@/lib/api/withValidation";
@@ -43,7 +43,7 @@ async function requireSeasonAdmin(req: Request): Promise<string> {
  */
 export const GET = withErrorHandling(async (req: Request, context: Context) => {
   const ip = getIP(req);
-  const { success, reset } = await rateLimit(ip, { limit: 100, windowMs: 60 * 1000 });
+  const { success, reset } = await rateLimit(ip, rateLimitPresets.read);
   if (!success) return rateLimitResponse(reset);
 
   const { id } = await context.params;
@@ -81,7 +81,7 @@ export const PATCH = withValidation(
   { body: seasonPatchBodySchema, params: paramsSchema },
   async (req, _context, { body, params }) => {
     const ip = getIP(req);
-    const { success, reset } = await rateLimit(ip, { limit: 10, windowMs: 60 * 1000 });
+    const { success, reset } = await rateLimit(ip, rateLimitPresets.sensitive);
     if (!success) return rateLimitResponse(reset);
 
     // Privileged write: require a verified admin caller before touching state.
@@ -115,7 +115,7 @@ export const POST = withValidation(
   { body: seasonArchiveBodySchema, params: paramsSchema },
   async (req, _context, { body, params }) => {
     const ip = getIP(req);
-    const { success, reset } = await rateLimit(ip, { limit: 5, windowMs: 60 * 1000 });
+    const { success, reset } = await rateLimit(ip, rateLimitPresets.sensitive);
     if (!success) return rateLimitResponse(reset);
 
     // Privileged write: require a verified admin caller before archiving.
