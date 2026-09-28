@@ -69,7 +69,7 @@ mod nft_reward_tests {
     }
 
     fn setup(env: &Env) -> (Address, NftRewardContractClient<'_>) {
-        let contract_id = env.register(NftRewardContract, ());
+        let contract_id = env.register_contract(None, NftRewardContract);
         let client = NftRewardContractClient::new(env, &contract_id);
         let minter = Address::generate(env);
         (minter, client)
@@ -105,6 +105,50 @@ mod nft_reward_tests {
         assert_eq!(client.balance_of(&player), 1);
         assert_owner_index_consistent(&client, &player);
         assert_eq!(client.get_owner(&id), Some(player));
+    }
+
+    #[test]
+    fn test_mint_accepts_https_uri() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (minter, client) = setup(&env);
+        let player = Address::generate(&env);
+        let uri = String::from_str(&env, "https://example.com/metadata.json");
+
+        let id = client.mint(&minter, &player, &uri);
+
+        assert_eq!(client.get_nft_uri(&id), Some(uri));
+    }
+
+    #[test]
+    fn test_mint_accepts_uri_at_max_length() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (minter, client) = setup(&env);
+        let player = Address::generate(&env);
+        let uri_bytes = [b'a'; 256];
+        let uri = String::from_bytes(&env, &uri_bytes);
+
+        let id = client.mint(&minter, &player, &uri);
+
+        assert_eq!(client.get_nft_uri(&id), Some(uri));
+    }
+
+    #[test]
+    fn test_uri_validation_rejects_empty_uri() {
+        let env = Env::default();
+        let uri = String::from_str(&env, "");
+
+        assert!(!crate::validate_uri(&uri));
+    }
+
+    #[test]
+    fn test_uri_validation_rejects_uri_over_max_length() {
+        let env = Env::default();
+        let uri_bytes = [b'a'; 257];
+        let uri = String::from_bytes(&env, &uri_bytes);
+
+        assert!(!crate::validate_uri(&uri));
     }
 
     #[test]
@@ -298,7 +342,7 @@ mod nft_reward_tests {
     }
 
     /// Issue #1402: once a token is burned it no longer exists, so a transfer
-    /// must fail with `NftError::TokenNotFound` instead of resurrecting it.
+    /// must fail with `nft does not exist` instead of resurrecting it.
     #[test]
     #[should_panic]
     fn test_transfer_burned_token_is_not_found() {
@@ -358,5 +402,38 @@ mod nft_reward_tests {
         assert_nft_absent(&client, &player, id3);
         assert_nft_present(&client, &player, id1);
         assert_nft_present(&client, &player, id2);
+    }
+
+    #[test]
+    fn test_get_player_nfts_page_boundaries() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (minter, client) = setup(&env);
+        let player = Address::generate(&env);
+
+        let id1 = client.mint(&minter, &player, &test_uri(&env, 1));
+        let id2 = client.mint(&minter, &player, &test_uri(&env, 2));
+        let id3 = client.mint(&minter, &player, &test_uri(&env, 3));
+        let id4 = client.mint(&minter, &player, &test_uri(&env, 4));
+
+        let first_page = client.get_player_nfts_page(&player, &0, &2);
+        assert_eq!(first_page.len(), 2);
+        assert_eq!(first_page.get(0).unwrap(), id1);
+        assert_eq!(first_page.get(1).unwrap(), id2);
+
+        let middle_page = client.get_player_nfts_page(&player, &1, &2);
+        assert_eq!(middle_page.len(), 2);
+        assert_eq!(middle_page.get(0).unwrap(), id2);
+        assert_eq!(middle_page.get(1).unwrap(), id3);
+
+        let tail_page = client.get_player_nfts_page(&player, &3, &2);
+        assert_eq!(tail_page.len(), 1);
+        assert_eq!(tail_page.get(0).unwrap(), id4);
+
+        let empty_page = client.get_player_nfts_page(&player, &4, &2);
+        assert_eq!(empty_page.len(), 0);
+
+        let zero_limit_page = client.get_player_nfts_page(&player, &0, &0);
+        assert_eq!(zero_limit_page.len(), 0);
     }
 }
