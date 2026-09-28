@@ -1,6 +1,6 @@
+import { ValidationError } from "@/lib/api/errors"
 import { getDb } from "@/lib/db"
 import { logger } from "@/lib/logger"
-import { ValidationError } from "@/lib/api/errors"
 
 /**
  * Follows domain logic.

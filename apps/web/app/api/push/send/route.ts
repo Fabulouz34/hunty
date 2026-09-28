@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { AuthError, InternalError, ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { logger } from "@/lib/logger";
-import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
 import { notifyWallet, notifyWallets } from "@/lib/notifications/pushService";
 import type { PushEventType } from "@/lib/notifications/types";
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
 
 /**
  * Internal service-to-service endpoint for triggering Web Push notifications.

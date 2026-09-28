@@ -1,15 +1,15 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { huntVersionEditBodySchema } from "@hunty/types/api-schemas";
+import { type NextRequest,NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getPublicHuntByIdOptimized } from "@/lib/db/queryOptimizer";
-import { getHuntVersion, listHuntVersions } from "@/lib/db/huntVersions";
-import { recordHuntAudit } from "@/lib/db/huntAuditLog";
-import { createHuntVersion } from "@/lib/db/huntVersions";
 import { AuthError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import { withValidation } from "@/lib/api/withValidation";
+import { recordHuntAudit } from "@/lib/db/huntAuditLog";
+import { getHuntVersion, listHuntVersions } from "@/lib/db/huntVersions";
+import { createHuntVersion } from "@/lib/db/huntVersions";
+import { getPublicHuntByIdOptimized } from "@/lib/db/queryOptimizer";
 import { getIP, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
-import { huntVersionEditBodySchema } from "@hunty/types/api-schemas";
 import { verifyCallerAuth } from "@/lib/walletAuth";
 
 const paramsSchema = z.object({ id: z.string() });

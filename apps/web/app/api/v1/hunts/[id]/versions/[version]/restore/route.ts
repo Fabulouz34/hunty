@@ -1,10 +1,10 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { huntVersionRestoreBodySchema } from "@hunty/types/api-schemas";
+import { type NextRequest,NextResponse } from "next/server";
 import { z } from "zod";
 
 import { AuthError, ForbiddenError, NotFoundError, ValidationError } from "@/lib/api/errors";
 import { withValidation } from "@/lib/api/withValidation";
 import { createHuntVersion, getHuntVersion } from "@/lib/db/huntVersions";
-import { huntVersionRestoreBodySchema } from "@hunty/types/api-schemas";
 import { verifyCallerAuth } from "@/lib/walletAuth";
 
 const paramsSchema = z.object({ id: z.string(), version: z.string() });

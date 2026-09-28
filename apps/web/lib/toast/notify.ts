@@ -1,15 +1,15 @@
 import {
-  TOAST_DURATION_MS,
-  TOAST_VIEW_ACTION_LABEL,
-  type ToastAction,
-  ToastVariant,
   extractExplorerTarget,
   resolveExplorerUrl,
   resolveToastDuration,
   resolveToastVariant,
+  TOAST_DURATION_MS,
+  TOAST_VIEW_ACTION_LABEL,
+  type ToastAction,
+  ToastVariant,
 } from "@hunty/ui/toast";
 import type { ReactNode } from "react";
-import { toast, type ExternalToast } from "sonner";
+import { type ExternalToast,toast } from "sonner";
 
 import { getStellarExplorerUrl } from "@/lib/constants";
 

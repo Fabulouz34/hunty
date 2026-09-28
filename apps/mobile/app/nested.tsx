@@ -12,6 +12,8 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { verifyClueGeofence } from '@/lib/locationGate';
+import { matchesClueAnswer } from '@lib/clueAnswerVerification';
+import { verifyQrAgainstClue } from '@lib/qrCodeDecryptor';
 
 const LazyARClueReveal = React.lazy(() =>
   import('@components/ARClueReveal').then((mod) => ({ default: mod.ARClueReveal })),

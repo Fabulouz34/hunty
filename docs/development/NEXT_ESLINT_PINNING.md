@@ -11,11 +11,11 @@ them in a single PR.
 
 ## Where the pins live
 
-| Package | Manifest | Field |
-| --- | --- | --- |
-| `next` | `package.json`, `apps/web/package.json` | `dependencies` |
-| `eslint-config-next` | `package.json`, `apps/web/package.json`, `packages/config/package.json` | `devDependencies` |
-| `@next/eslint-plugin-next` | `packages/config/package.json` | `devDependencies` |
+| Package                    | Manifest                                                                | Field             |
+| -------------------------- | ----------------------------------------------------------------------- | ----------------- |
+| `next`                     | `package.json`, `apps/web/package.json`                                 | `dependencies`    |
+| `eslint-config-next`       | `package.json`, `apps/web/package.json`, `packages/config/package.json` | `devDependencies` |
+| `@next/eslint-plugin-next` | `packages/config/package.json`                                          | `devDependencies` |
 
 All of them are exact pins (no `^` / `~`). `packages/config` owns the shared
 `@hunty/config/eslint/next` preset that consumes both ESLint packages, which is

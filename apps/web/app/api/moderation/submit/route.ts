@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { submitHuntForModeration } from "@/lib/moderation/dbStore";
-import type { StoredHunt } from "@/lib/types";
-import { withErrorHandling } from "@/lib/api/withErrorHandling";
+
 import { AuthError, RateLimitError, ValidationError } from "@/lib/api/errors";
+import { withErrorHandling } from "@/lib/api/withErrorHandling";
+import { submitHuntForModeration } from "@/lib/moderation/dbStore";
 import { getIP, rateLimit, rateLimitPresets } from "@/lib/rate-limit";
 import { verifySignedMessage } from "@/lib/signature";
+import type { StoredHunt } from "@/lib/types";
 
 export const POST = withErrorHandling(async (req: Request) => {
   const ip = getIP(req);

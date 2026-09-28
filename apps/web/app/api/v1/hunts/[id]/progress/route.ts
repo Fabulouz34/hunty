@@ -1,15 +1,15 @@
+import { huntProgressBodySchema, huntProgressQuerySchema } from "@hunty/types/api-schemas"
 import { NextResponse } from "next/server"
+import { z } from "zod"
 
 import { ValidationError } from "@/lib/api/errors"
 import { withErrorHandling } from "@/lib/api/withErrorHandling"
 import { withValidation } from "@/lib/api/withValidation"
-import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit"
 import {
   getPlayerProgress,
   savePlayerProgress,
 } from "@/lib/progressData"
-import { huntProgressBodySchema, huntProgressQuerySchema } from "@hunty/types/api-schemas"
-import { z } from "zod"
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit"
 
 type RouteContext = { params: Promise<{ id: string }> }
 

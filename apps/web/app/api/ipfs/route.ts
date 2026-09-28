@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { logger } from "@/lib/logger"
+
 import { BadGatewayError, ServiceUnavailableError, ValidationError } from "@/lib/api/errors"
 import { withErrorHandling } from "@/lib/api/withErrorHandling"
+import { logger } from "@/lib/logger"
 import { getIP, rateLimit, rateLimitPresets } from "@/lib/rate-limit"
 
 const PINATA_JWT = process.env.PINATA_JWT

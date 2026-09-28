@@ -44,7 +44,8 @@ const TRACKED = [NEXT, ...ESLINT_PACKAGES];
 const normalize = (specifier) => specifier.replace(/^[\s^~>=<v]+/, "").trim();
 
 /** An exact pin, e.g. `15.5.24` — not `^15.5.24`, `~15.5.24`, `>=15.5.24` or `latest`. */
-const isExactPin = (specifier) => /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(specifier);
+const isExactPin = (specifier) =>
+  /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(specifier);
 
 const declared = [];
 for (const manifest of MANIFESTS) {

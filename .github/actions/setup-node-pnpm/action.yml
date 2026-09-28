@@ -1,5 +1,5 @@
 name: "Setup Node.js with pnpm"
-description: "Sets up Node.js, configures pnpm, caches dependencies, and installs with frozen lockfile"
+description: "Sets up Node.js, configures pnpm, caches dependencies, and installs with pnpm"
 
 inputs:
   node-version:

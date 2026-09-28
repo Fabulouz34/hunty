@@ -9,9 +9,9 @@ import { NextResponse } from "next/server";
 
 import { ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
-import { getIP, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { getPublicHuntByIdOptimized } from "@/lib/db/queryOptimizer";
 import { notifyFollowersOfNewHunt } from "@/lib/follows";
+import { getIP, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 type Context = { params: Promise<{ id: string }> };
 

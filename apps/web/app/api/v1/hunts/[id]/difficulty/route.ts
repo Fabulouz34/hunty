@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 
 import { ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
-import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
 import { computeDifficulty } from "@/lib/computeDifficulty";
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
 
 /**
  * GET /api/v1/hunts/[id]/difficulty

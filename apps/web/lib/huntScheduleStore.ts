@@ -15,12 +15,12 @@
  */
 
 import { getDb } from "@/lib/db";
-import { logger } from "@/lib/logger";
 import {
   applyHuntScheduleTransitions,
   getReminderCandidates,
   type HuntReminderState,
 } from "@/lib/huntScheduling";
+import { logger } from "@/lib/logger";
 import type { StoredHunt } from "@/lib/types";
 
 export type HuntScheduleStatus = "scheduled" | "active" | "ended";

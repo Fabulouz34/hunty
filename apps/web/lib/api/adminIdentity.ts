@@ -19,8 +19,11 @@
  */
 
 import { randomBytes } from "node:crypto";
+
 import { Keypair } from "@stellar/stellar-sdk";
+
 import { auditLog } from "@/lib/audit";
+
 import { AuthError, ForbiddenError } from "./errors";
 import { constantTimeEqual } from "./timingSafeCompare";
 

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
-import { listPublicActiveHuntsByCursorOptimized } from "@/lib/db/queryOptimizer";
-import { ValidationError, AuthError } from "@/lib/api/errors";
+import { AuthError,ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
-import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
+import { listPublicActiveHuntsByCursorOptimized } from "@/lib/db/queryOptimizer";
 import { getFollowing } from "@/lib/follows";
-import type { StoredHunt } from "@/lib/types";
-import { verifySignedMessage } from "@/lib/signature";
 import { submitHuntForModeration } from "@/lib/moderation/dbStore";
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
+import { verifySignedMessage } from "@/lib/signature";
+import type { StoredHunt } from "@/lib/types";
 
 /**
  * GET /api/v1/hunts

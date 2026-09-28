@@ -26,6 +26,7 @@ const blurhash = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
 interface OptimizedHuntFeedProps {
   onRefresh?: () => Promise<void>;
   refreshing?: boolean;
+  accessibilityMode?: boolean;
 }
 
 export function OptimizedHuntFeed({
@@ -126,17 +127,21 @@ export function OptimizedHuntFeed({
     setDisplayCount((prev) => prev + PAGE_SIZE);
   }, [hasMore, isLoadingMore]);
 
-  const getItemLayout = useCallback((data: ListItem[] | null | undefined, index: number) => {
-    if (!data) return { length: 0, offset: 0, index };
+  const getItemLayout = useCallback(
+    (data: ArrayLike<ListItem> | null | undefined, index: number) => {
+      if (!data) return { length: 0, offset: 0, index };
 
-    let offset = 0;
-    for (let i = 0; i < index; i++) {
-      offset += data[i].kind === 'sectionHeader' ? SECTION_HEADER_HEIGHT : HUNT_CARD_HEIGHT;
-    }
+      let offset = 0;
+      for (let i = 0; i < index; i++) {
+        offset += data[i].kind === 'sectionHeader' ? SECTION_HEADER_HEIGHT : HUNT_CARD_HEIGHT;
+      }
 
-    const length = data[index].kind === 'sectionHeader' ? SECTION_HEADER_HEIGHT : HUNT_CARD_HEIGHT;
-    return { length, offset, index };
-  }, []);
+      const length =
+        data[index].kind === 'sectionHeader' ? SECTION_HEADER_HEIGHT : HUNT_CARD_HEIGHT;
+      return { length, offset, index };
+    },
+    [],
+  );
 
   const keyExtractor = useCallback((item: ListItem) => item.id, []);
 

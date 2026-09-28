@@ -12,14 +12,14 @@
  * invoke allow-listed Soroban contracts are sponsored.
  */
 
-import { NextResponse } from "next/server";
+import { paymasterSponsorBodySchema } from "@hunty/types/api-schemas";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 import { withValidation } from "@/lib/api/withValidation";
 import { getPaymaster } from "@/lib/paymaster";
 import { enforceContractAllowList } from "@/lib/paymaster/allowList";
 import { verifyCallerAuth } from "@/lib/walletAuth";
-import { paymasterSponsorBodySchema } from "@hunty/types/api-schemas";
 
 export const dynamic = "force-dynamic";
 

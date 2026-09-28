@@ -4,6 +4,7 @@ Applies to `POST /api/v1/seasons`. `GET /api/v1/seasons` stays public — it onl
 reads season, leaderboard and battle-pass data.
 
 ## Trust Boundaries
+
 - Creating a season is a privileged write. It is restricted to admins.
 - The acting identity is derived from the verified credential only. No request
   body field is trusted as an actor; `createdBy` on the stored season is always
@@ -22,6 +23,7 @@ reads season, leaderboard and battle-pass data.
   empty `ADMIN_WALLET_ADDRESSES` means no wallet is an admin.
 
 ## Authorization
+
 - 401 `UNAUTHORIZED` — no credentials, a wallet address without a challenge or
   signature, a malformed/expired/wrong-purpose challenge, or a bad signature.
 - 403 `FORBIDDEN` — a valid signed challenge from a wallet that is not an admin,
@@ -31,9 +33,11 @@ reads season, leaderboard and battle-pass data.
   `insufficient_role`).
 
 ## Rate Limiting
+
 - Per-IP: 10 requests per 60 seconds, applied before the credential check.
 
 ## Known Limitations
+
 - Challenges are not single-use. The replay window is bounded to 5 minutes by
   the `issuedAt` check, but within that window the same challenge can be
   presented again. Closing this requires a server-issued, single-use challenge

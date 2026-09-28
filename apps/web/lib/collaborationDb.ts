@@ -5,8 +5,8 @@
  * with durable, multi-instance-safe database operations.
  */
 
-import { getDb } from "@/lib/db"
 import type { CollaboratorRole, HuntCollaborator } from "@/lib/collaboration"
+import { getDb } from "@/lib/db"
 
 const COLLAB_KEY = "hunty_collaborators"
 

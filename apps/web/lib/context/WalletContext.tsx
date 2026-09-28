@@ -13,6 +13,7 @@ import {
 
 import { useIsMounted } from "@/hooks/useIsMounted"
 import { migrateGuestProgressToWallet } from "@/lib/huntStore"
+import { useWalletMachine } from "@/lib/wallet/walletMachine";
 import {
   clearStoredWalletSession,
   connectWalletProvider,
@@ -20,13 +21,12 @@ import {
   setStoredWalletSession,
   type WalletProvider,
 } from "@/lib/walletAdapter"
-import { useWalletStore } from "@/lib/wallets/walletStore"
 import { truncateAddress } from "@/lib/walletAddress"
 import { truncateAddress } from "@/lib/walletAddress";
-import { useWalletMachine } from "@/lib/wallet/walletMachine";
+import type { WalletProvider } from "@/lib/wallets/types";
+import { useWalletStore } from "@/lib/wallets/walletStore"
 import { useWalletStore } from "@/lib/wallets/walletStore";
 import { usePlayerStore, useWalletStore as useLegacyWalletStore } from "@/store/useStore";
-import type { WalletProvider } from "@/lib/wallets/types";
 
 // ─── Address display helper ────────────────────────────────────────────────
 
