@@ -108,6 +108,50 @@ mod nft_reward_tests {
     }
 
     #[test]
+    fn test_mint_accepts_https_uri() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (minter, client) = setup(&env);
+        let player = Address::generate(&env);
+        let uri = String::from_str(&env, "https://example.com/metadata.json");
+
+        let id = client.mint(&minter, &player, &uri);
+
+        assert_eq!(client.get_nft_uri(&id), Some(uri));
+    }
+
+    #[test]
+    fn test_mint_accepts_uri_at_max_length() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (minter, client) = setup(&env);
+        let player = Address::generate(&env);
+        let uri_bytes = [b'a'; 256];
+        let uri = String::from_bytes(&env, &uri_bytes);
+
+        let id = client.mint(&minter, &player, &uri);
+
+        assert_eq!(client.get_nft_uri(&id), Some(uri));
+    }
+
+    #[test]
+    fn test_uri_validation_rejects_empty_uri() {
+        let env = Env::default();
+        let uri = String::from_str(&env, "");
+
+        assert!(!crate::validate_uri(&uri));
+    }
+
+    #[test]
+    fn test_uri_validation_rejects_uri_over_max_length() {
+        let env = Env::default();
+        let uri_bytes = [b'a'; 257];
+        let uri = String::from_bytes(&env, &uri_bytes);
+
+        assert!(!crate::validate_uri(&uri));
+    }
+
+    #[test]
     fn test_burn_removes_from_owner_index() {
         let env = Env::default();
         env.mock_all_auths();

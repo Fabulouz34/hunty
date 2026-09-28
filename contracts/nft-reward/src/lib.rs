@@ -4,6 +4,12 @@ mod storage;
 
 use soroban_sdk::{contract, contractimpl, Address, Env, String, Symbol, Vec};
 
+const MAX_URI_LEN: u32 = 256;
+
+fn validate_uri(uri: &String) -> bool {
+    uri.len() > 0 && uri.len() <= MAX_URI_LEN
+}
+
 #[contract]
 pub struct NftRewardContract;
 
@@ -11,6 +17,8 @@ pub struct NftRewardContract;
 impl NftRewardContract {
     pub fn mint(env: Env, minter: Address, recipient: Address, uri: String) -> u64 {
         minter.require_auth();
+
+        assert!(validate_uri(&uri), "uri must be non-empty and at most 256 bytes");
 
         let nft_id = storage::increment_total_supply(&env);
         storage::set_nft_uri(&env, nft_id, &uri);
