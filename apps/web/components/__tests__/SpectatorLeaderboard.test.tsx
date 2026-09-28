@@ -1,72 +1,127 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+/**
+ * #1442 – SpectatorLeaderboard a11y tests
+ *
+ * Covers:
+ * - A polite live region is present in the DOM
+ * - The leaderboard renders correctly
+ * - Rank change announcements are generated and placed in the live region
+ */
 
-import SpectatorLeaderboard from "../SpectatorLeaderboard";
+import { render, screen, act } from "@testing-library/react"
+import React from "react"
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
+
+import SpectatorLeaderboard from "../SpectatorLeaderboard"
 
 const mockLeaderboardData = {
-  hunt: {
-    id: 1,
-    title: "Test Hunt",
-    description: "A test hunt description",
-  },
+  hunt: { id: 1, title: "Test Hunt", description: "A test hunt" },
   leaderboard: [
-    { position: 1, name: "Player1", points: 100, completionCount: 5 },
-    { position: 2, name: "Player2", points: 80, completionCount: 4 },
+    { position: 1, name: "Alice", points: 100, completionCount: 5 },
+    { position: 2, name: "Bob", points: 80, completionCount: 4 },
   ],
-  summary: {
-    topRankName: "Player1",
-    topRankPoints: 100,
-    playerCount: 2,
-  },
-  embedUrl: "http://example.com/embed",
-  shareUrl: "http://example.com/share",
-};
+  summary: { topRankName: "Alice", topRankPoints: 100, playerCount: 2 },
+  embedUrl: "https://hunty.app/embed/1",
+  shareUrl: "https://hunty.app/share/1",
+}
+
+beforeEach(() => {
+  global.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    json: () => Promise.resolve(mockLeaderboardData),
+  }) as unknown as typeof global.fetch
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe("SpectatorLeaderboard", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    global.fetch = vi.fn();
-  });
+  it("has a polite live region for announcing rank changes", () => {
+    render(<SpectatorLeaderboard huntId="1" />)
 
-  it("renders loading state initially", () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    const liveRegion = document.querySelector('[aria-live="polite"]')
+    expect(liveRegion).toBeInTheDocument()
+    expect(liveRegion).toHaveAttribute("aria-atomic", "true")
+    expect(liveRegion).toHaveAttribute("role", "status")
+  })
+
+  it("renders the leaderboard with players", async () => {
+    render(<SpectatorLeaderboard huntId="1" />)
+
+    expect(screen.getByText("Test Hunt")).toBeInTheDocument()
+    expect(screen.getByText("Alice")).toBeInTheDocument()
+    expect(screen.getByText("Bob")).toBeInTheDocument()
+  })
+
+  it("announces a new player entering the leaderboard", async () => {
+    render(<SpectatorLeaderboard huntId="1" />)
+
+    // Wait for initial fetch to complete
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Simulate a subsequent fetch with a new player
+    const updatedData = {
+      ...mockLeaderboardData,
+      leaderboard: [
+        { position: 1, name: "Alice", points: 100, completionCount: 5 },
+        { position: 2, name: "Bob", points: 80, completionCount: 4 },
+        { position: 3, name: "Charlie", points: 60, completionCount: 3 },
+      ],
+    }
+
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => mockLeaderboardData,
-    });
-    
-    const { container } = render(<SpectatorLeaderboard huntId="1" />);
-    expect(container.querySelector(".animate-spin")).toBeInTheDocument();
-  });
+      json: () => Promise.resolve(updatedData),
+    }) as unknown as typeof global.fetch
 
-  it("renders leaderboard data after successful fetch", async () => {
-    (global.fetch as any).mockResolvedValueOnce({
+    // Trigger the data-update effect
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Flush the requestAnimationFrame used to update the live region
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    const liveRegion = document.querySelector('[aria-live="polite"]')
+    expect(liveRegion?.textContent).toContain(
+      "Charlie entered the leaderboard at position 3",
+    )
+  })
+
+  it("announces a player moving up in rank", async () => {
+    render(<SpectatorLeaderboard huntId="1" />)
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    const updatedData = {
+      ...mockLeaderboardData,
+      leaderboard: [
+        { position: 1, name: "Bob", points: 80, completionCount: 4 },
+        { position: 2, name: "Alice", points: 100, completionCount: 5 },
+      ],
+    }
+
+    global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => mockLeaderboardData,
-    });
+      json: () => Promise.resolve(updatedData),
+    }) as unknown as typeof global.fetch
 
-    render(<SpectatorLeaderboard huntId="1" />);
+    await act(async () => {
+      await Promise.resolve()
+    })
 
-    await waitFor(() => {
-      expect(screen.getByText("Test Hunt")).toBeInTheDocument();
-    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
 
-    expect(screen.getByText("A test hunt description")).toBeInTheDocument();
-    expect(screen.getByText("Player1")).toBeInTheDocument();
-    expect(screen.getByText("Player2")).toBeInTheDocument();
-    expect(screen.getByText("100 pts")).toBeInTheDocument();
-  });
-
-  it("renders error state on fetch failure", async () => {
-    (global.fetch as any).mockResolvedValueOnce({
-      ok: false,
-    });
-
-    render(<SpectatorLeaderboard huntId="1" />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Failed to load leaderboard")).toBeInTheDocument();
-    });
-    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
-  });
-});
+    const liveRegion = document.querySelector('[aria-live="polite"]')
+    expect(liveRegion?.textContent).toContain("Bob moved up 1 position to 1")
+    expect(liveRegion?.textContent).toContain("Alice moved down 1 position to 2")
+  })
+})

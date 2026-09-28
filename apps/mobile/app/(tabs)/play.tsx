@@ -2,6 +2,7 @@ import { usePlayerLocation } from '@app/hooks/usePlayerLocation';
 import { ClueMarkdownRenderer } from '@components/ClueMarkdownRenderer';
 import { BackgroundLocationControl } from '@components/BackgroundLocationControl';
 import { EmptyState } from '@components/EmptyState';
+import { OfflineBanner } from '@components/OfflineBanner';
 import { QRScanner } from '@components/QRScanner';
 import { ThemedButton, ThemedCustomText, ThemedView } from '@components/themed';
 import { useHaptics } from '@hooks/useHaptics';
@@ -10,16 +11,12 @@ import { verifyQrAgainstClue } from '@lib/qrCodeDecryptor';
 import type { Clue } from '@lib/types';
 import { useTheme } from '@providers/ThemeProvider';
 import { useToast } from '@providers/ToastProvider';
-import { getHuntClues } from '@store/huntStore';
+import { getHuntClues, queueClueAnswer } from '@store/huntStore';
 import { usePlayerStore, useWalletStore } from '@store/useStore';
-import type { Clue } from '@hunty/types';
-import { verifyQrAgainstClue } from '@lib/qrCodeDecryptor';
-import { matchesClueAnswer } from '@lib/clueAnswerVerification';
-import { useToast } from '@providers/ToastProvider';
-import { ClueMarkdownRenderer } from '@components/ClueMarkdownRenderer';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 
 import { verifyClueGeofence } from '@/lib/locationGate';
 import { disableBackgroundProximity } from '@/services/backgroundLocation';
@@ -29,7 +26,7 @@ export default function PlayScreen() {
   const [isOnline, setIsOnline] = useState(true);
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      setIsOnline(state.isConnected && state.isInternetReachable);
+      setIsOnline(Boolean(state.isConnected && state.isInternetReachable));
     });
     return () => unsubscribe();
   }, []);
@@ -38,7 +35,7 @@ export default function PlayScreen() {
   const { colors } = useTheme();
   const haptics = useHaptics();
   const { showToast } = useToast();
-  const { network } = useWalletStore();
+  const { network, walletAddress } = useWalletStore();
   const {
     location,
     error: locationError,
@@ -103,7 +100,7 @@ export default function PlayScreen() {
 
     // If offline, queue the answer and update progress locally
     if (!isOnline) {
-      await queueClueAnswer(currentProgress.hunt_id, activeClue.id, answer.trim());
+      await queueClueAnswer(currentProgress.hunt_id, activeClue.id, answer.trim(), walletAddress);
       // Mark clue completed locally
       markClueCompleted(currentProgress.hunt_id, activeClueIndex);
       // Advance to next clue
@@ -140,8 +137,9 @@ export default function PlayScreen() {
           currentProgress.hunt_id,
         );
         if (!qrCheck.match) {
-          showToast({ message: qrCheck.reason, type: 'error' });
-          setError(qrCheck.reason);
+          const reason = qrCheck.reason || 'QR code does not match this clue.';
+          showToast({ message: reason, type: 'error' });
+          setError(reason);
           return;
         }
       } else if (!(await matchesClueAnswer(submittedAnswer, activeClue, currentProgress.hunt_id))) {
