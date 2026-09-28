@@ -10,13 +10,81 @@ fn validate_uri(uri: &String) -> bool {
     uri.len() > 0 && uri.len() <= MAX_URI_LEN
 }
 
+// ─── access control (issue #1399) ─────────────────────────────────────────────
+
+/// Panic unless `caller` is the admin stored by [`NftRewardContract::initialize`].
+///
+/// The admin — not the allow-list — owns the allow-list, so a compromised
+/// minter cannot widen its own authority.
+fn require_admin(env: &Env, caller: &Address) {
+    assert_eq!(
+        storage::get_admin(env),
+        Some(caller.clone()),
+        "caller is not the contract admin"
+    );
+}
+
 #[contract]
 pub struct NftRewardContract;
 
 #[contractimpl]
 impl NftRewardContract {
+    // ── initialisation ────────────────────────────────────────────────────────
+
+    /// One-time contract setup.
+    ///
+    /// Stores `admin` and the initial minter allow-list. `admin` must authorise
+    /// this call, and a second call panics so neither the admin nor the
+    /// allow-list can be swapped out after deployment.
+    ///
+    /// Until this has run no `mint` can succeed: `is_minter_allowed` defaults to
+    /// `false`, so a freshly deployed contract is mintable by nobody.
+    ///
+    /// # Authorization
+    ///
+    /// `admin` must authorise this call.
+    pub fn initialize(env: Env, admin: Address, minters: Vec<Address>) {
+        admin.require_auth();
+
+        assert!(!storage::is_initialized(&env), "already initialized");
+
+        storage::set_admin(&env, &admin);
+
+        for i in 0..minters.len() {
+            let minter = minters.get(i).unwrap();
+            storage::set_minter_allowed(&env, &minter, true);
+        }
+    }
+
+    /// Add `minter` to the allow-list. Admin-only.
+    pub fn add_minter(env: Env, admin: Address, minter: Address) {
+        admin.require_auth();
+        require_admin(&env, &admin);
+
+        storage::set_minter_allowed(&env, &minter, true);
+    }
+
+    /// Remove `minter` from the allow-list. Admin-only.
+    pub fn remove_minter(env: Env, admin: Address, minter: Address) {
+        admin.require_auth();
+        require_admin(&env, &admin);
+
+        storage::set_minter_allowed(&env, &minter, false);
+    }
+
+    // ── mint ──────────────────────────────────────────────────────────────────
+
     pub fn mint(env: Env, minter: Address, recipient: Address, uri: String) -> u64 {
         minter.require_auth();
+
+        // Issue #1399: `require_auth` only proves the caller owns the key it
+        // passed as `minter` — any address could therefore mint unlimited
+        // reward NFTs for itself. Only an allow-listed minter (in the Hunty
+        // deployment, the Reward Manager acting for the hunt creator) may mint.
+        assert!(
+            storage::is_minter_allowed(&env, &minter),
+            "minter is not on the allow-list"
+        );
 
         assert!(validate_uri(&uri), "uri must be non-empty and at most 256 bytes");
 
@@ -37,16 +105,6 @@ impl NftRewardContract {
 
         let owner = storage::get_nft_owner(&env, nft_id).expect("nft does not exist");
         assert_eq!(owner, from, "not owner");
-
-        // Explicit self-transfer no-op (issue #1402). Existence and ownership
-        // are still checked first, so a missing or burned token keeps failing
-        // above; a valid self-transfer, however, must leave the owner index and
-        // the balance untouched instead of relying on `remove_nft_from_owner`
-        // and `add_nft_to_owner` happening to be symmetric — the token would
-        // otherwise churn through a new slot for no state change at all.
-        if from == to {
-            return;
-        }
 
         storage::remove_nft_from_owner(&env, &from, nft_id);
         storage::add_nft_to_owner(&env, &to, nft_id);
@@ -115,6 +173,18 @@ mod test {
         vec, IntoVal, TryFromVal,
     };
 
+    /// Register-and-initialise a single-minter contract for the event tests:
+    /// with the issue #1399 allow-list in place, `mint` panics unless its minter
+    /// was allow-listed by `initialize`.
+    fn initialize_single_minter(env: &Env, client: &NftRewardContractClient) -> Address {
+        let admin = Address::generate(env);
+        let minter = Address::generate(env);
+        let mut minters = Vec::new(env);
+        minters.push_back(minter.clone());
+        client.initialize(&admin, &minters);
+        minter
+    }
+
     #[test]
     fn test_mint_event_published() {
         let env = Env::default();
@@ -122,9 +192,9 @@ mod test {
         let client = NftRewardContractClient::new(&env, &contract_id);
 
         let recipient = Address::generate(&env);
-        let minter = Address::generate(&env);
 
         env.mock_all_auths();
+        let minter = initialize_single_minter(&env, &client);
         let minted_id = client.mint(&minter, &recipient, &String::from_str(&env, "ipfs://mint"));
         assert_eq!(minted_id, 1);
 
@@ -152,9 +222,9 @@ mod test {
 
         let from = Address::generate(&env);
         let to = Address::generate(&env);
-        let minter = Address::generate(&env);
 
         env.mock_all_auths();
+        let minter = initialize_single_minter(&env, &client);
         let nft_id = client.mint(&minter, &from, &String::from_str(&env, "ipfs://transfer"));
         client.transfer(&from, &to, &nft_id);
 
@@ -182,9 +252,9 @@ mod test {
         let client = NftRewardContractClient::new(&env, &contract_id);
 
         let owner = Address::generate(&env);
-        let minter = Address::generate(&env);
 
         env.mock_all_auths();
+        let minter = initialize_single_minter(&env, &client);
         let nft_id = client.mint(&minter, &owner, &String::from_str(&env, "ipfs://burn"));
         client.burn(&owner, &nft_id);
 
