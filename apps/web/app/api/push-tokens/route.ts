@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { NextRequest, NextResponse } from "next/server";
+
 import { ForbiddenError, ValidationError } from "@/lib/api/errors";
 import { withErrorHandling } from "@/lib/api/withErrorHandling";
 import {
@@ -73,7 +74,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     );
   }
 
-  upsertSubscription(subscription, walletAddress, preferences);
+  await upsertSubscription(subscription, walletAddress, preferences);
 
   if (isFirstRegistration) {
     const secret = mintSecret();
@@ -112,7 +113,7 @@ export const DELETE = withErrorHandling(async (request: NextRequest) => {
     );
   }
 
-  removeSubscriptionsForWallet(walletAddress);
+  await removeSubscriptionsForWallet(walletAddress);
   ownerSecrets.delete(key);
 
   return NextResponse.json({ success: true });
@@ -121,7 +122,7 @@ export const DELETE = withErrorHandling(async (request: NextRequest) => {
 export const GET = withErrorHandling(async (request: Request) => {
   const { searchParams } = new URL(request.url);
   const walletAddress = searchParams.get("walletAddress");
-  const ownerSecret = searchParams.get("ownerSecret");
+  const ownerSecret = request.headers.get("x-owner-secret");
 
   if (!walletAddress || !secretMatches(walletAddress, ownerSecret)) {
     // Identical response whether the wallet never registered or the secret is
@@ -129,7 +130,7 @@ export const GET = withErrorHandling(async (request: Request) => {
     return NextResponse.json({ registered: false });
   }
 
-  const subscriptions = getSubscriptionsForWallet(walletAddress);
+  const subscriptions = await getSubscriptionsForWallet(walletAddress);
   return NextResponse.json({
     registered: subscriptions.length > 0,
     registeredAt: subscriptions[0]?.registeredAt,

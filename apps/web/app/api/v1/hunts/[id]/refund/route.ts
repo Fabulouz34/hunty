@@ -1,11 +1,12 @@
+import { huntRefundBodySchema } from "@hunty/types/api-schemas";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { NotFoundError,ValidationError } from "@/lib/api/errors";
 import { withValidation } from "@/lib/api/withValidation";
-import { ValidationError, NotFoundError } from "@/lib/api/errors";
-import { huntRefundBodySchema } from "@hunty/types/api-schemas";
-import { getIP, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { recordHuntAudit } from "@/lib/db/huntAuditLog";
 import { logger } from "@/lib/logger";
+import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit";
 
 const paramsSchema = z.object({ id: z.string() });
 
@@ -34,7 +35,7 @@ export const POST = withValidation(
   { body: huntRefundBodySchema, params: paramsSchema },
   async (req, _context, { body, params }) => {
     const ip = getIP(req);
-    const { success, reset } = await rateLimit(ip, { limit: 20, windowMs: 60 * 1000 });
+    const { success, reset } = await rateLimit(ip, rateLimitPresets.sensitive);
     if (!success) return rateLimitResponse(reset);
 
     const huntId = parseInt(params!.id, 10);
@@ -67,6 +68,11 @@ export const POST = withValidation(
         body.creatorAddress,
         gracePeriodSeconds
       );
+
+      await recordHuntAudit(huntId, "hunt refund", body.creatorAddress, {
+        amount: receipt.amount,
+        txHash: receipt.txHash,
+      });
 
       return NextResponse.json({ success: true, receipt });
     } catch (error) {
