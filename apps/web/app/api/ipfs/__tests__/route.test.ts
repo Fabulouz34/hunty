@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { NextRequest } from "next/server"
 
+import { MAX_IPFS_UPLOAD_BYTES } from "@/lib/upload-limits"
+
 vi.mock("@/lib/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }))
@@ -8,6 +10,11 @@ vi.mock("@/lib/logger", () => ({
 vi.mock("@/lib/rate-limit", () => ({
   getIP: () => "127.0.0.1",
   rateLimit: vi.fn().mockResolvedValue({ success: true, reset: 0 }),
+  rateLimitPresets: {
+    read: { limit: 100, windowMs: 60_000 },
+    write: { limit: 30, windowMs: 60_000 },
+    sensitive: { limit: 10, windowMs: 60_000 },
+  },
 }))
 
 async function loadRoute() {
@@ -30,6 +37,24 @@ function createUploadRequest(
     headers,
     body: formData,
   })
+}
+
+/**
+ * Builds a request whose `formData()` returns a file-like object with a known
+ * `size`. The jsdom `FormData` ⇄ undici `File` realm boundary mangles multipart
+ * contents under test (a 4.5 MB blob parses back as 9 bytes), so the size
+ * boundary cannot be exercised through real multipart parsing.
+ */
+function createSizedUploadRequest(size: number, type = "image/png") {
+  const req = new NextRequest("http://localhost/api/ipfs", {
+    method: "POST",
+    headers: { "x-wallet-address": "GABCDEF123456789" },
+  })
+  const file = { size, type }
+  Object.defineProperty(req, "formData", {
+    value: async () => ({ get: (key: string) => (key === "file" ? file : null) }),
+  })
+  return req
 }
 
 describe("POST /api/ipfs", () => {
@@ -80,25 +105,30 @@ describe("POST /api/ipfs", () => {
     expect(body.error).toContain("File type not allowed")
   })
 
-  it("returns 400 when file exceeds MAX_FILE_SIZE (50 MB)", async () => {
+  it("returns 400 when file exceeds the platform upload cap", async () => {
     const { POST } = await loadRoute()
-    // Create oversized dummy blob metadata
-    const oversizedBlob = new Blob(["oversized content"], { type: "image/png" })
-    Object.defineProperty(oversizedBlob, "size", { value: 55 * 1024 * 1024 })
-
-    const formData = new FormData()
-    formData.append("file", oversizedBlob, "large.png")
-
-    const req = new NextRequest("http://localhost/api/ipfs", {
-      method: "POST",
-      headers: { "x-wallet-address": "GABCDEF123456789" },
-      body: formData,
-    })
+    const req = createSizedUploadRequest(MAX_IPFS_UPLOAD_BYTES + 1)
 
     const res = await POST(req)
     expect(res.status).toBe(400)
     const body = await res.json()
-    expect(body.error).toContain("File too large")
+    expect(body.error).toContain("too large")
+    expect(body.error).toContain("4.5 MB")
+  })
+
+  it("accepts a file exactly at the upload cap", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ IpfsHash: "QmBoundaryCid" }),
+    } as any)
+
+    const { POST } = await loadRoute()
+    const req = createSizedUploadRequest(MAX_IPFS_UPLOAD_BYTES)
+
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.cid).toBe("QmBoundaryCid")
   })
 
   it("accepts allowed MIME types and pins file to IPFS", async () => {
