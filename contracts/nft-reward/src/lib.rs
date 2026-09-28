@@ -38,6 +38,16 @@ impl NftRewardContract {
         let owner = storage::get_nft_owner(&env, nft_id).expect("nft does not exist");
         assert_eq!(owner, from, "not owner");
 
+        // Explicit self-transfer no-op (issue #1402). Existence and ownership
+        // are still checked first, so a missing or burned token keeps failing
+        // above; a valid self-transfer, however, must leave the owner index and
+        // the balance untouched instead of relying on `remove_nft_from_owner`
+        // and `add_nft_to_owner` happening to be symmetric — the token would
+        // otherwise churn through a new slot for no state change at all.
+        if from == to {
+            return;
+        }
+
         storage::remove_nft_from_owner(&env, &from, nft_id);
         storage::add_nft_to_owner(&env, &to, nft_id);
         storage::set_nft_owner(&env, nft_id, &to);
