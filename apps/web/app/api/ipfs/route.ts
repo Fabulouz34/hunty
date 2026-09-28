@@ -4,10 +4,27 @@ import { BadGatewayError, ServiceUnavailableError, ValidationError } from "@/lib
 import { withErrorHandling } from "@/lib/api/withErrorHandling"
 import { logger } from "@/lib/logger"
 import { getIP, rateLimit, rateLimitPresets } from "@/lib/rate-limit"
+import {
+  exceedsUploadLimit,
+  IPFS_UPLOAD_TOO_LARGE_MESSAGE,
+} from "@/lib/upload-limits"
 
 const PINATA_JWT = process.env.PINATA_JWT
-const MAX_FILE_SIZE = 50 * 1024 * 1024
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "application/pdf", "text/plain", "video/mp4", "audio/mpeg"])
+
+/**
+ * Duck-typed Blob check. `instanceof Blob` fails for File objects that cross a
+ * realm boundary (e.g. the undici `File` returned by `req.formData()` compared
+ * against a jsdom `Blob` under test), so verify the shape instead.
+ */
+function isBlobLike(value: FormDataEntryValue | null): value is Blob {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as Blob).size === "number" &&
+    typeof (value as Blob).type === "string"
+  )
+}
 
 async function rateLimited(key: string) {
   const { success, reset } = await rateLimit(key, rateLimitPresets.sensitive)
@@ -25,8 +42,8 @@ export const POST = withErrorHandling(async (req: NextRequest) => {
   if (walletLimit) return walletLimit
   const formData = await req.formData()
   const file = formData.get("file")
-  if (!file || !(file instanceof Blob)) throw new ValidationError("No file provided", { field: "file" })
-  if (file.size > MAX_FILE_SIZE) throw new ValidationError("File too large", { field: "file" })
+  if (!isBlobLike(file)) throw new ValidationError("No file provided", { field: "file" })
+  if (exceedsUploadLimit(file.size)) throw new ValidationError(IPFS_UPLOAD_TOO_LARGE_MESSAGE, { field: "file" })
   if (!ALLOWED_MIME_TYPES.has(file.type)) throw new ValidationError("File type not allowed", { field: "file" })
   const pinataForm = new FormData()
   pinataForm.append("file", file)
