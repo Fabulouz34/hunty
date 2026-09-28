@@ -42,3 +42,17 @@ reads season, leaderboard and battle-pass data.
   instances.
 - `ADMIN_API_SECRET` is a shared secret: it identifies "an admin machine", not a
   person. It is not sufficient on its own for attribution or non-repudiation.
+
+## Battle Pass Claim Security Model
+
+Applies to `POST /api/v1/seasons/[id]/battle-pass`. `GET /api/v1/seasons/[id]/battle-pass`
+stays public — it only reads tier configurations and player progress.
+
+- Claiming a tier reward is a privileged write on player progress.
+- Caller identity must be verified via signed wallet challenge (`x-wallet-address`,
+  `x-wallet-challenge`, `x-wallet-signature`) or session token (`Authorization: Bearer <token>`
+  or `x-session-token`).
+- The player address is derived strictly from the verified identity, never from the request body.
+- Returns 401 for unauthenticated requests (missing credentials, incomplete payload, bad signature,
+  invalid session token) and 403 for unauthorized callers.
+
