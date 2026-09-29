@@ -3,7 +3,7 @@ name: Auto-merge PRs
 # Merges any non-draft PR into main 10 minutes after it is opened or last
 # pushed to, if GitHub reports it has no conflicts. A new push restarts the
 # 10-minute timer; closing the PR or converting it to a draft during the wait
-# stops the merge. PRs with conflicts get a comment and are retried when the
+# stops the merge. Right before merging it thanks the PR author in a comment. PRs with conflicts get a comment and are retried when the
 # author pushes a fix.
 #
 # pull_request_target runs in the context of the base repo so the token can
@@ -66,7 +66,16 @@ jobs:
 
             case "$state" in
               MERGEABLE)
-                gh pr merge "$n" --merge && echo "Merged #$n" || echo "::warning::Failed to merge #$n"
+                author=$(gh pr view "$n" --json author -q .author.login)
+                gh pr comment "$n" --body "@$author Great news! 🎉 This PR has no merge conflicts and is now being merged into \`main\`.
+
+          Once it's merged, the linked Wave issue(s) will be picked up for review by Drips Wave. Thanks for contributing — keep up the great work! 🚀"
+                if gh pr merge "$n" --merge; then
+                  echo "Merged #$n"
+                else
+                  echo "::warning::Failed to merge #$n"
+                  gh pr comment "$n" --body "@$author Sorry — the automatic merge failed, so a maintainer will review and merge this PR manually."
+                fi
                 ;;
               CONFLICTING)
                 echo "#$n has conflicts"
