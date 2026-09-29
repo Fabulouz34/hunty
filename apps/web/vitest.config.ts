@@ -40,13 +40,6 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: {
-      "@hunty/config": path.resolve(__dirname, "../../packages/config"),
-      "@hunty/config/*": path.resolve(__dirname, "../../packages/config/*"),
-      "@hunty/types/schemas": path.resolve(__dirname, "../../packages/types/src/schemas.ts"),
-      "@hunty/types": path.resolve(__dirname, "../../packages/types/src/index.ts"),
-      "@": path.resolve(__dirname, "./"),
-    },
     // Keep subpath aliases ahead of the package root alias. Vite matches
     // aliases by prefix, so @hunty/types would otherwise swallow
     // @hunty/types/api-schemas.
@@ -66,6 +59,22 @@ export default defineConfig({
       {
         find: "next-auth/jwt",
         replacement: path.resolve(__dirname, "./__mocks__/next-auth/jwt.ts"),
+      },
+      {
+        find: "next-auth/jwt",
+        replacement: path.resolve(__dirname, "./__mocks__/next-auth/jwt.ts"),
+      },
+      {
+        find: "@hunty/ui/toast",
+        replacement: path.resolve(__dirname, "../../packages/ui/src/toast/index.ts"),
+      },
+      {
+        find: "@hunty/config",
+        replacement: path.resolve(__dirname, "../../packages/config"),
+      },
+      {
+        find: "@hunty/config/(.*)",
+        replacement: path.resolve(__dirname, "../../packages/config/$1"),
       },
       {
         find: "@hunty/types/api-schemas",

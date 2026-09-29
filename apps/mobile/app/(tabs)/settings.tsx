@@ -1,5 +1,9 @@
 import { ThemedButton, ThemedCustomText, ThemedView } from '@components/themed';
+import { DisconnectWalletModal } from '@components/settings/DisconnectWalletModal';
+import { SettingsRow } from '@components/settings/SettingsRow';
+import { SettingsSection } from '@components/settings/SettingsSection';
 import { useHaptics } from '@hooks/useHaptics';
+import { useNotifications } from '@hooks/useNotifications';
 import { useTheme } from '@providers/ThemeProvider';
 import { useToast } from '@providers/ToastProvider';
 import { getAllHunts } from '@store/huntStore';
@@ -7,7 +11,7 @@ import { usePlayerStore, useWalletStore } from '@store/useStore';
 import type { StoredHunt } from '@hunty/types';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 
 function rewardLabel(hunt: StoredHunt) {
   if (hunt.rewardType === 'Both') return '100 XLM + NFT';
@@ -22,6 +26,8 @@ export default function HuntsScreen() {
   const { showToast } = useToast();
   const { network } = useWalletStore();
   const { currentProgress, setProgress } = usePlayerStore();
+  const { enabled: notificationsEnabled, toggle: toggleNotifications } = useNotifications();
+  const [showDisconnect, setShowDisconnect] = useState(false);
   const [hunts, setHunts] = useState<StoredHunt[]>([]);
   const [loadingHuntId, setLoadingHuntId] = useState<number | null>(null);
 
@@ -240,10 +246,14 @@ export default function HuntsScreen() {
           })}
         </View>
       </ScrollView>
+      <DisconnectWalletModal
+        visible={showDisconnect}
+        onCancel={() => setShowDisconnect(false)}
+        onConfirm={() => setShowDisconnect(false)}
+      />
     </ThemedView>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
   contentContainer: { padding: 20, paddingBottom: 40 },
@@ -285,4 +295,5 @@ const styles = StyleSheet.create({
   },
   infoCol: { flex: 1 },
   infoLabel: { opacity: 0.6 },
+  version: { textAlign: 'center', marginTop: 16, marginBottom: 8 },
 });
