@@ -301,6 +301,13 @@ export const huntArchiveBodySchema = z.object({
   actorAddress: nonEmptyStringSchema,
 });
 
+// ─── v1 / Hunts / [id] / Refund ──────────────────────────────────────────────
+
+export const huntRefundBodySchema = z.object({
+  /** Stellar address of the hunt creator reclaiming unclaimed rewards. */
+  creatorAddress: nonEmptyStringSchema,
+});
+
 // ─── v1 / Hunts / [id] / Delete ──────────────────────────────────────────────
 
 export const huntDeleteBodySchema = z.object({
