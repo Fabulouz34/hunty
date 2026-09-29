@@ -11,7 +11,7 @@ import { verifyQrAgainstClue } from '@lib/qrCodeDecryptor';
 import type { Clue } from '@lib/types';
 import { useTheme } from '@providers/ThemeProvider';
 import { useToast } from '@providers/ToastProvider';
-import { getHuntClues, queueClueAnswer } from '@store/huntStore';
+import { getHuntClues, queueClueAnswer, submitAnswerToServerOnline } from '@store/huntStore';
 import { usePlayerStore, useWalletStore } from '@store/useStore';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -98,18 +98,6 @@ export default function PlayScreen() {
       return;
     }
 
-    // If offline, queue the answer and update progress locally
-    if (!isOnline) {
-      await queueClueAnswer(currentProgress.hunt_id, activeClue.id, answer.trim(), walletAddress);
-      // Mark clue completed locally
-      markClueCompleted(currentProgress.hunt_id, activeClueIndex);
-      // Advance to next clue
-      updateClueIndex(activeClueIndex + 1);
-      setAnswer('');
-      showToast({ message: 'Answer queued. It will be submitted when back online.', type: 'info' });
-      return;
-    }
-
     if (network === 'mainnet') {
       showToast({
         message: 'Switch wallet to Stellar Testnet before submitting final proof.',
@@ -148,6 +136,31 @@ export default function PlayScreen() {
         return;
       }
 
+      // If offline, queue the answer
+      if (!isOnline) {
+        await queueClueAnswer(currentProgress.hunt_id, activeClue.id, submittedAnswer.trim(), walletAddress);
+        markClueCompleted(currentProgress.hunt_id, activeClueIndex);
+        updateClueIndex(activeClueIndex + 1);
+        setAnswer('');
+        showToast({ message: 'Answer queued. It will be submitted when back online.', type: 'info' });
+        return;
+      }
+
+      // Submit to server when online
+      const serverResponse = await submitAnswerToServerOnline(
+        currentProgress.hunt_id,
+        activeClue.id,
+        submittedAnswer.trim(),
+        walletAddress,
+      );
+
+      if (!serverResponse) {
+        setError('Failed to submit answer. Please try again.');
+        haptics.triggerNotification('error');
+        return;
+      }
+
+      // Update local progress based on server response
       const isLastClue = activeClueIndex === clues.length - 1;
       markClueCompleted(currentProgress.hunt_id, activeClueIndex);
 
