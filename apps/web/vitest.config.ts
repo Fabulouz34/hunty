@@ -52,6 +52,14 @@ export default defineConfig({
         find: "@upstash/redis",
         replacement: path.resolve(__dirname, "./__mocks__/@upstash/redis.ts"),
       },
+      // next-auth/jwt is a runtime dependency that requires a full NextAuth
+      // setup not present in the test environment.  Redirect to a stub so
+      // routes that transitively import lib/api/adminAuth.ts can be loaded
+      // by Vite's import-analysis without errors.
+      {
+        find: "next-auth/jwt",
+        replacement: path.resolve(__dirname, "./__mocks__/next-auth/jwt.ts"),
+      },
       {
         find: "next-auth/jwt",
         replacement: path.resolve(__dirname, "./__mocks__/next-auth/jwt.ts"),

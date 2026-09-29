@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server"
 import { withValidation } from "@/lib/api/withValidation"
-import { getIP, rateLimit, rateLimitPresets, rateLimitResponse } from "@/lib/rate-limit"
 import { withErrorHandling } from "@/lib/api/withErrorHandling"
+import { getIP, rateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { getAllPayouts, processReferralPayouts } from "@/lib/referralStore"
 import { referralPayoutBodySchema } from "@hunty/types/api-schemas"
 import { assertAdminAuth } from "@/lib/api/adminAuth"
 import { AuthError } from "@/lib/api/errors"
+import { constantTimeEqual } from "@/lib/api/timingSafeCompare"
 import { auditLog } from "@/lib/audit"
-
-// ─── Shared admin guard ───────────────────────────────────────────────────────
 
 /**
  * Verifies the request comes from an admin.
@@ -43,7 +42,7 @@ async function requireAdmin(req: Request) {
 
 /**
  * Returns all referral payout records (pending, processing, paid, failed).
- * Admin-only: requires a valid admin session or API key.
+ * Read-only — no authentication required.
  */
 export const GET = withErrorHandling(async (req: Request) => {
   const ip = getIP(req)
@@ -69,6 +68,13 @@ export const GET = withErrorHandling(async (req: Request) => {
  * When execute=false (default), returns a dry-run preview without persisting anything.
  * When execute=true, creates payout records with status "pending".
  *
+ * Authorization: Only admins and authorised background jobs may call this endpoint.
+ *   - Admin session: valid NextAuth JWT with role === "admin"
+ *   - Background job: X-Admin-Token header matching ADMIN_API_TOKEN env var
+ *
+ * The acting identity is always derived from the verified credential, never from
+ * the request body.
+ *
  * Default reward tiers (caller may supply any allocations array):
  *   Rank 1 → 750 pts
  *   Rank 2 → 450 pts
@@ -76,13 +82,9 @@ export const GET = withErrorHandling(async (req: Request) => {
  *
  * Request body: { period, allocations: [{ rank, referrerAddress, amount, rewardType }], execute? }
  *
- * Auth:
- *   - x-admin-key: <ADMIN_API_KEY>   (background jobs / CI)
- *   - NextAuth session with role=admin  (admin UI)
- *
  * Errors:
- *   - 401 Unauthorized — no valid credential supplied
- *   - 403 Forbidden — credential present but insufficient privileges
+ *   401 – no valid session or API token provided
+ *   403 – authenticated but lacks admin role
  */
 export const POST = withValidation(
   { body: referralPayoutBodySchema },
@@ -91,8 +93,39 @@ export const POST = withValidation(
     const { success, reset } = await rateLimit(ip, rateLimitPresets.sensitive)
     if (!success) return rateLimitResponse(reset)
 
-    // Auth guard: throws 401/403 if the caller is not an admin.
-    const admin = await requireAdmin(req)
+    // ── Authorization ────────────────────────────────────────────────────────
+    //
+    // Accept either:
+    //   (a) an admin NextAuth session (interactive callers / dashboards), or
+    //   (b) a shared secret via X-Admin-Token (background jobs / cron).
+    //
+    // The actor identity is always derived from the verified credential, never
+    // from the request body.
+
+    let actor: string
+
+    const jobToken = req.headers.get("x-admin-token")
+    const adminApiToken = process.env.ADMIN_API_TOKEN
+
+    if (jobToken !== null) {
+      // Background-job path: validate the shared secret with constant-time compare.
+      if (!adminApiToken || !constantTimeEqual(jobToken, adminApiToken)) {
+        auditLog(
+          "unauthorized",
+          { path: new URL(req.url).pathname, reason: "invalid_job_token" },
+          "anonymous"
+        )
+        throw new AuthError("Unauthorized")
+      }
+      actor = "background-job"
+    } else {
+      // Interactive admin path: assert a valid NextAuth session with admin role.
+      // assertAdminAuth throws AuthError (401) or ForbiddenError (403) on failure.
+      const adminUser = await assertAdminAuth(req)
+      actor = adminUser.id
+    }
+
+    // ── Business logic ───────────────────────────────────────────────────────
 
     const result = processReferralPayouts(
       body.period,
@@ -105,16 +138,17 @@ export const POST = withValidation(
       body.execute
     )
 
-    auditLog(
-      body.execute ? "referral-payouts.execute" : "referral-payouts.dry-run",
-      {
-        period: body.period,
-        allocationCount: body.allocations.length,
-        totalAmount: result.totalAmount,
-        dryRun: result.dryRun,
-      },
-      admin.id
-    )
+    if (body.execute) {
+      auditLog(
+        "referral_payouts_executed",
+        {
+          path: new URL(req.url).pathname,
+          period: body.period,
+          allocationCount: body.allocations.length,
+        },
+        actor
+      )
+    }
 
     return NextResponse.json(result, { status: body.execute ? 201 : 200 })
   }
