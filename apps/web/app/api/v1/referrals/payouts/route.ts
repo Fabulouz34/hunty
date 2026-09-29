@@ -8,67 +8,63 @@ import { assertAdminAuth } from "@/lib/api/adminAuth"
 import { AuthError } from "@/lib/api/errors"
 import { auditLog } from "@/lib/audit"
 
+// ─── Shared admin guard ───────────────────────────────────────────────────────
+
 /**
- * Asserts that the caller is either:
- *   1. An authenticated admin session (next-auth JWT with role=admin), or
- *   2. A background-job credential supplied as `Authorization: Bearer <ADMIN_API_KEY>`.
+ * Verifies the request comes from an admin.
  *
- * Throws AuthError (→ 401) when neither condition is met.
- * Returns a string actor identifier so the caller can include it in audit logs.
+ * Accepts either:
+ *  - A valid `x-admin-key` header matching `process.env.ADMIN_API_KEY` (for
+ *    background jobs / CI pipelines), or
+ *  - A NextAuth session JWT with `role === "admin"` (for interactive admin UI).
+ *
+ * Throws `AuthError` (401) when neither credential is present or valid.
  */
-async function assertAdminOrServiceAuth(req: Request): Promise<string> {
-  // Path 1 — Bearer token for background-job / service-to-service calls
-  const authHeader = req.headers.get("authorization") ?? ""
-  if (authHeader.startsWith("Bearer ")) {
-    const token = authHeader.slice(7)
-    const adminApiKey = process.env.ADMIN_API_KEY
+async function requireAdmin(req: Request) {
+  const adminKey = req.headers.get("x-admin-key")
 
-    if (!adminApiKey) {
-      // Fail closed: if no key is configured, bearer auth is unavailable.
-      throw new AuthError("Service authentication is not configured")
-    }
-
-    if (token !== adminApiKey) {
+  if (adminKey !== null) {
+    if (adminKey !== process.env.ADMIN_API_KEY) {
       auditLog(
-        "unauthorized",
-        { path: new URL(req.url).pathname, reason: "invalid_bearer_token" },
-        "anonymous"
+        "referral-payouts.unauthorized",
+        { reason: "invalid_api_key", path: new URL(req.url).pathname },
+        "api-key"
       )
       throw new AuthError("Invalid API key")
     }
-
-    return "service:admin-api-key"
+    return { id: "api-key", email: "api-key@internal", role: "admin" }
   }
 
-  // Path 2 — Admin session via next-auth JWT
-  const admin = await assertAdminAuth(req)
-  return admin.email ?? admin.id
+  // Falls through to session-based auth; assertAdminAuth throws on failure.
+  return assertAdminAuth(req)
 }
 
+// ─── GET /api/v1/referrals/payouts ────────────────────────────────────────────
+
 /**
- * GET /api/v1/referrals/payouts
- *
  * Returns all referral payout records (pending, processing, paid, failed).
- * Requires admin session or service bearer token.
+ * Admin-only: requires a valid admin session or API key.
  */
 export const GET = withErrorHandling(async (req: Request) => {
   const ip = getIP(req)
   const { success, reset } = await rateLimit(ip, rateLimitPresets.read)
   if (!success) return rateLimitResponse(reset)
 
-  await assertAdminOrServiceAuth(req)
+  const admin = await requireAdmin(req)
+
+  auditLog("referral-payouts.list", { path: new URL(req.url).pathname }, admin.id)
 
   const payouts = getAllPayouts()
   return NextResponse.json({ payouts, total: payouts.length })
 })
 
+// ─── POST /api/v1/referrals/payouts ───────────────────────────────────────────
+
 /**
- * POST /api/v1/referrals/payouts
- *
  * Calculates and optionally executes reward payout allocations for top referrers.
  *
- * Only admins and authorised background jobs may call this endpoint. The actor
- * identity is derived from the verified credential — never from the request body.
+ * Admin-only: only an admin session or a background-job API key may call this.
+ * The actor is derived from the verified identity, not the request body.
  *
  * When execute=false (default), returns a dry-run preview without persisting anything.
  * When execute=true, creates payout records with status "pending".
@@ -80,11 +76,13 @@ export const GET = withErrorHandling(async (req: Request) => {
  *
  * Request body: { period, allocations: [{ rank, referrerAddress, amount, rewardType }], execute? }
  *
- * Authentication:
- *   - Admin session:  next-auth JWT with role=admin
- *   - Background job: Authorization: Bearer <ADMIN_API_KEY>
+ * Auth:
+ *   - x-admin-key: <ADMIN_API_KEY>   (background jobs / CI)
+ *   - NextAuth session with role=admin  (admin UI)
  *
- * Returns 401 when unauthenticated, 403 when authenticated but not admin.
+ * Errors:
+ *   - 401 Unauthorized — no valid credential supplied
+ *   - 403 Forbidden — credential present but insufficient privileges
  */
 export const POST = withValidation(
   { body: referralPayoutBodySchema },
@@ -93,19 +91,8 @@ export const POST = withValidation(
     const { success, reset } = await rateLimit(ip, rateLimitPresets.sensitive)
     if (!success) return rateLimitResponse(reset)
 
-    // Auth check — must come before any business logic.
-    // The actor is derived from the verified credential, not the request body.
-    const actor = await assertAdminOrServiceAuth(req)
-
-    auditLog(
-      "referral_payout.create",
-      {
-        period: body.period,
-        allocationCount: body.allocations.length,
-        execute: body.execute ?? false,
-      },
-      actor
-    )
+    // Auth guard: throws 401/403 if the caller is not an admin.
+    const admin = await requireAdmin(req)
 
     const result = processReferralPayouts(
       body.period,
@@ -116,6 +103,17 @@ export const POST = withValidation(
         rewardType: a.rewardType,
       })),
       body.execute
+    )
+
+    auditLog(
+      body.execute ? "referral-payouts.execute" : "referral-payouts.dry-run",
+      {
+        period: body.period,
+        allocationCount: body.allocations.length,
+        totalAmount: result.totalAmount,
+        dryRun: result.dryRun,
+      },
+      admin.id
     )
 
     return NextResponse.json(result, { status: body.execute ? 201 : 200 })

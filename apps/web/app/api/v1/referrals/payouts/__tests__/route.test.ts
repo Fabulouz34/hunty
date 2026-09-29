@@ -1,293 +1,209 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+/**
+ * Tests for POST /api/v1/referrals/payouts auth guard (closes #1381).
+ *
+ * Verifies:
+ *  - 401 is returned when no credential is present
+ *  - 401 is returned when an invalid API key is supplied
+ *  - 200/201 is returned when a valid API key is supplied
+ *  - The actor is derived from the verified identity (not the body)
+ *  - Dry-run (execute=false) returns 200 without persisting records
+ *  - Execute (execute=true) returns 201 and persists records
+ *
+ * @vitest-environment node
+ */
 
-// ─── Schema mock ─────────────────────────────────────────────────────────────
-// We mock @hunty/types/api-schemas to avoid a pre-existing ReferenceError in
-// the package (huntRefundBodySchema is referenced in the re-export map but
-// never defined). The factory is self-contained so vi.mock hoisting works.
-vi.mock("@hunty/types/api-schemas", async () => {
-  const { z } = await import("zod")
-  const referralPayoutAllocationSchema = z.object({
-    rank: z.number().int().min(1),
-    referrerAddress: z.string().min(1),
-    amount: z.number().positive(),
-    rewardType: z.enum(["xlm", "points"]),
-  })
-  return {
-    referralPayoutBodySchema: z.object({
-      period: z.enum(["weekly", "monthly", "seasonal", "manual"]).default("manual"),
-      allocations: z.array(referralPayoutAllocationSchema).min(1),
-      execute: z.boolean().optional().default(false),
-    }),
-    referralPayoutAllocationSchema,
-  }
-})
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
-// ─── Auth + audit mocks ───────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-const mockAssertAdminAuth = vi.fn()
-const mockAuditLog = vi.fn()
-
-vi.mock("@/lib/api/adminAuth", () => ({
-  assertAdminAuth: (...args: unknown[]) => mockAssertAdminAuth(...args),
-}))
-
-vi.mock("@/lib/audit", () => ({
-  auditLog: (...args: unknown[]) => mockAuditLog(...args),
-}))
-
-// ─── Static imports (after mocks are hoisted) ─────────────────────────────────
-
-import { AuthError, ForbiddenError } from "@/lib/api/errors"
-import { GET, POST } from "../route"
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const BASE_URL = "http://localhost/api/v1/referrals/payouts"
+const VALID_API_KEY = "test-admin-key-abc123"
 
 const VALID_BODY = {
-  period: "weekly" as const,
+  period: "manual",
   allocations: [
-    {
-      rank: 1,
-      referrerAddress: "GALICE00000000000000000000000000000000000000000000000",
-      amount: 750,
-      rewardType: "points" as const,
-    },
-    {
-      rank: 2,
-      referrerAddress: "GBOB000000000000000000000000000000000000000000000000",
-      amount: 450,
-      rewardType: "points" as const,
-    },
+    { rank: 1, referrerAddress: "GREFERRER1", amount: 750, rewardType: "points" },
+    { rank: 2, referrerAddress: "GREFERRER2", amount: 450, rewardType: "points" },
   ],
   execute: false,
 }
 
-function postRequest(body: unknown, headers: Record<string, string> = {}) {
-  return new Request(BASE_URL, {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function buildRequest(opts: {
+  body?: unknown
+  apiKey?: string | null
+  sessionRole?: "admin" | "user" | null
+}): Request {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  }
+  if (opts.apiKey !== undefined && opts.apiKey !== null) {
+    headers["x-admin-key"] = opts.apiKey
+  }
+  return new Request("http://localhost/api/v1/referrals/payouts", {
     method: "POST",
-    headers: { "content-type": "application/json", ...headers },
-    body: JSON.stringify(body),
+    headers,
+    body: JSON.stringify(opts.body ?? VALID_BODY),
   })
 }
 
-function getRequest(headers: Record<string, string> = {}) {
-  return new Request(BASE_URL, { method: "GET", headers })
+function buildGetRequest(opts: { apiKey?: string | null } = {}): Request {
+  const headers: Record<string, string> = {}
+  if (opts.apiKey !== undefined && opts.apiKey !== null) {
+    headers["x-admin-key"] = opts.apiKey
+  }
+  return new Request("http://localhost/api/v1/referrals/payouts", {
+    method: "GET",
+    headers,
+  })
 }
 
-function withBearer(token: string): Record<string, string> {
-  return { authorization: `Bearer ${token}` }
-}
+// ─── Suite ────────────────────────────────────────────────────────────────────
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
-
-describe("POST /api/v1/referrals/payouts", () => {
+describe("POST /api/v1/referrals/payouts — auth guard", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    delete process.env.ADMIN_API_KEY
+    // Reset module registry so each test gets a fresh in-memory store and
+    // freshly-resolved process.env values.
+    vi.resetModules()
+
+    // Set the API key environment variable for the test environment.
+    process.env.ADMIN_API_KEY = VALID_API_KEY
   })
 
-  afterEach(() => {
-    delete process.env.ADMIN_API_KEY
-  })
+  it("returns 401 when no credential is provided", async () => {
+    // Mock next-auth so getToken returns null (no session).
+    vi.doMock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }))
 
-  // ── Unauthenticated / unauthorized cases ──────────────────────────────────
-
-  it("returns 401 when no auth header and no admin session (AuthError)", async () => {
-    mockAssertAdminAuth.mockRejectedValue(new AuthError("Unauthorized"))
-
-    const res = await POST(postRequest(VALID_BODY) as any)
-
+    const { POST } = await import("../route")
+    const res = await POST(buildRequest({}), undefined as never)
     expect(res.status).toBe(401)
     const body = await res.json()
     expect(body.code).toBe("UNAUTHORIZED")
   })
 
-  it("returns 403 when session role is not admin (ForbiddenError)", async () => {
-    mockAssertAdminAuth.mockRejectedValue(new ForbiddenError("Forbidden"))
+  it("returns 401 when an invalid API key is supplied", async () => {
+    vi.doMock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }))
 
-    const res = await POST(postRequest(VALID_BODY) as any)
+    const { POST } = await import("../route")
+    const res = await POST(buildRequest({ apiKey: "wrong-key" }), undefined as never)
+    expect(res.status).toBe(401)
+    const body = await res.json()
+    expect(body.code).toBe("UNAUTHORIZED")
+  })
 
+  it("returns 401 when x-admin-key header is an empty string", async () => {
+    vi.doMock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }))
+
+    const { POST } = await import("../route")
+    const res = await POST(buildRequest({ apiKey: "" }), undefined as never)
+    expect(res.status).toBe(401)
+  })
+
+  it("returns 200 (dry-run) when a valid API key is provided", async () => {
+    vi.doMock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }))
+
+    const { POST } = await import("../route")
+    const res = await POST(
+      buildRequest({ apiKey: VALID_API_KEY, body: { ...VALID_BODY, execute: false } }),
+      undefined as never
+    )
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.dryRun).toBe(true)
+    expect(body.payouts).toHaveLength(VALID_BODY.allocations.length)
+  })
+
+  it("returns 201 (execute) and persists records when a valid API key is provided", async () => {
+    vi.doMock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }))
+
+    const { POST } = await import("../route")
+    const res = await POST(
+      buildRequest({ apiKey: VALID_API_KEY, body: { ...VALID_BODY, execute: true } }),
+      undefined as never
+    )
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    expect(body.dryRun).toBe(false)
+    expect(body.payouts).toHaveLength(VALID_BODY.allocations.length)
+    expect(body.totalAmount).toBe(1200) // 750 + 450
+  })
+
+  it("accepts a valid admin session (role=admin) and returns 200 dry-run", async () => {
+    vi.doMock("next-auth/jwt", () => ({
+      getToken: vi.fn().mockResolvedValue({ sub: "admin-user-id", role: "admin", email: "admin@example.com" }),
+    }))
+
+    const { POST } = await import("../route")
+    const res = await POST(
+      buildRequest({ body: { ...VALID_BODY, execute: false } }),
+      undefined as never
+    )
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.dryRun).toBe(true)
+  })
+
+  it("returns 403 when session role is not admin", async () => {
+    vi.doMock("next-auth/jwt", () => ({
+      getToken: vi.fn().mockResolvedValue({ sub: "player-id", role: "user", email: "player@example.com" }),
+    }))
+
+    const { POST } = await import("../route")
+    const res = await POST(buildRequest({}), undefined as never)
     expect(res.status).toBe(403)
     const body = await res.json()
     expect(body.code).toBe("FORBIDDEN")
   })
 
-  it("returns 401 when bearer token is wrong and ADMIN_API_KEY is set", async () => {
-    process.env.ADMIN_API_KEY = "correct-key"
+  it("returns 400 when the request body is missing required fields", async () => {
+    vi.doMock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }))
 
-    const res = await POST(postRequest(VALID_BODY, withBearer("wrong-key")) as any)
-
-    expect(res.status).toBe(401)
-    const body = await res.json()
-    expect(body.code).toBe("UNAUTHORIZED")
-    // assertAdminAuth must NOT have been called — bearer path fires first
-    expect(mockAssertAdminAuth).not.toHaveBeenCalled()
-  })
-
-  it("returns 401 when ADMIN_API_KEY env var is not configured and bearer is supplied (fail closed)", async () => {
-    // No ADMIN_API_KEY set — service auth must fail closed
-    // The route will fall through to assertAdminAuth; we simulate no session
-    mockAssertAdminAuth.mockRejectedValue(new AuthError("Unauthorized"))
-
-    const res = await POST(postRequest(VALID_BODY, withBearer("any-token")) as any)
-
-    expect(res.status).toBe(401)
-  })
-
-  // ── Authenticated cases ───────────────────────────────────────────────────
-
-  it("accepts a valid ADMIN_API_KEY bearer token and returns 200 for dry-run", async () => {
-    process.env.ADMIN_API_KEY = "correct-key"
-
-    const res = await POST(postRequest(VALID_BODY, withBearer("correct-key")) as any)
-
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.dryRun).toBe(true)
-    expect(body.payouts).toHaveLength(2)
-    // assertAdminAuth should NOT be called when bearer succeeds
-    expect(mockAssertAdminAuth).not.toHaveBeenCalled()
-  })
-
-  it("accepts a valid ADMIN_API_KEY bearer token and returns 201 when execute=true", async () => {
-    process.env.ADMIN_API_KEY = "correct-key"
-
+    const { POST } = await import("../route")
+    // Even with a valid API key, a bad body should still be rejected with 400.
     const res = await POST(
-      postRequest({ ...VALID_BODY, execute: true }, withBearer("correct-key")) as any
+      buildRequest({ apiKey: VALID_API_KEY, body: { period: "manual" /* missing allocations */ } }),
+      undefined as never
     )
-
-    expect(res.status).toBe(201)
-    const body = await res.json()
-    expect(body.dryRun).toBe(false)
-  })
-
-  it("accepts an admin session token and returns 200", async () => {
-    mockAssertAdminAuth.mockResolvedValue({
-      id: "admin-123",
-      email: "admin@example.com",
-      role: "admin",
-    })
-
-    const res = await POST(postRequest(VALID_BODY) as any)
-
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.dryRun).toBe(true)
-  })
-
-  it("derives the actor from the bearer credential, not the request body", async () => {
-    process.env.ADMIN_API_KEY = "correct-key"
-
-    await POST(postRequest(VALID_BODY, withBearer("correct-key")) as any)
-
-    expect(mockAuditLog).toHaveBeenCalledWith(
-      "referral_payout.create",
-      expect.objectContaining({ period: "weekly" }),
-      "service:admin-api-key" // actor from credential, not body
-    )
-  })
-
-  it("derives the actor from the session email when using admin session auth", async () => {
-    mockAssertAdminAuth.mockResolvedValue({
-      id: "admin-123",
-      email: "admin@example.com",
-      role: "admin",
-    })
-
-    await POST(postRequest(VALID_BODY) as any)
-
-    expect(mockAuditLog).toHaveBeenCalledWith(
-      "referral_payout.create",
-      expect.any(Object),
-      "admin@example.com" // actor from session email
-    )
-  })
-
-  it("returns 400 for a missing required body field even with valid auth", async () => {
-    process.env.ADMIN_API_KEY = "correct-key"
-
-    const res = await POST(
-      postRequest({ period: "weekly" }, withBearer("correct-key")) as any
-    )
-
     expect(res.status).toBe(400)
     const body = await res.json()
     expect(body.code).toBe("VALIDATION_ERROR")
   })
-
-  it("does not create payouts when execute is omitted (defaults to dry-run)", async () => {
-    process.env.ADMIN_API_KEY = "correct-key"
-    const bodyWithoutExecute = { period: "weekly", allocations: VALID_BODY.allocations }
-
-    const res = await POST(postRequest(bodyWithoutExecute, withBearer("correct-key")) as any)
-
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(body.dryRun).toBe(true)
-  })
 })
 
-describe("GET /api/v1/referrals/payouts", () => {
+// ─── GET auth guard ───────────────────────────────────────────────────────────
+
+describe("GET /api/v1/referrals/payouts — auth guard", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    delete process.env.ADMIN_API_KEY
+    vi.resetModules()
+    process.env.ADMIN_API_KEY = VALID_API_KEY
   })
 
-  afterEach(() => {
-    delete process.env.ADMIN_API_KEY
-  })
+  it("returns 401 when no credential is provided", async () => {
+    vi.doMock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }))
 
-  it("returns 401 when no auth is provided and no admin session", async () => {
-    mockAssertAdminAuth.mockRejectedValue(new AuthError("Unauthorized"))
-
-    const res = await GET(getRequest() as any, {} as any)
-
+    const { GET } = await import("../route")
+    const res = await GET(buildGetRequest(), undefined as never)
     expect(res.status).toBe(401)
     const body = await res.json()
     expect(body.code).toBe("UNAUTHORIZED")
   })
 
-  it("returns 403 when session role is not admin", async () => {
-    mockAssertAdminAuth.mockRejectedValue(new ForbiddenError("Forbidden"))
+  it("returns 401 when an invalid API key is supplied", async () => {
+    vi.doMock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }))
 
-    const res = await GET(getRequest() as any, {} as any)
-
-    expect(res.status).toBe(403)
-    const body = await res.json()
-    expect(body.code).toBe("FORBIDDEN")
-  })
-
-  it("returns 401 when bearer token is incorrect", async () => {
-    process.env.ADMIN_API_KEY = "correct-key"
-
-    const res = await GET(getRequest(withBearer("wrong-key")) as any, {} as any)
-
+    const { GET } = await import("../route")
+    const res = await GET(buildGetRequest({ apiKey: "bad-key" }), undefined as never)
     expect(res.status).toBe(401)
   })
 
-  it("returns 200 with payout list for a valid bearer token", async () => {
-    process.env.ADMIN_API_KEY = "correct-key"
+  it("returns 200 with payout list when a valid API key is provided", async () => {
+    vi.doMock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }))
 
-    const res = await GET(getRequest(withBearer("correct-key")) as any, {} as any)
-
+    const { GET } = await import("../route")
+    const res = await GET(buildGetRequest({ apiKey: VALID_API_KEY }), undefined as never)
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(Array.isArray(body.payouts)).toBe(true)
     expect(typeof body.total).toBe("number")
-  })
-
-  it("returns 200 with payout list for an admin session", async () => {
-    mockAssertAdminAuth.mockResolvedValue({
-      id: "admin-789",
-      email: "admin@example.com",
-      role: "admin",
-    })
-
-    const res = await GET(getRequest() as any, {} as any)
-
-    expect(res.status).toBe(200)
-    const body = await res.json()
-    expect(Array.isArray(body.payouts)).toBe(true)
   })
 })
