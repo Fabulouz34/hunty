@@ -149,9 +149,7 @@ async function HuntPageContent({
       <div role="main" className="relative max-w-3xl mx-auto px-6 pt-16">
         {/* Status badge */}
         <div className="mb-6">
-          <span
-            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-widest uppercase ${status.classes}`}
-          >
+          <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-widest uppercase ${status.classes}`}>
             {huntDetails?.status === "Active" && (
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             )}
@@ -187,7 +185,7 @@ async function HuntPageContent({
             <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">Rating</p>
             <StarRating rating={huntDetails.averageRating} count={huntDetails.reviewCount} />
           </div>
-          <div className="bg-white/5 border border-white/10 rounded-2x p-5">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
             <p className="text-xs text-slate-400 uppercase tracking-widest mb-1">Hunt ID</p>
             <p className="text-white font-semibold text-lg"># {huntDetails.id}</p>
           </div>
