@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getHuntById } from "@/lib/huntStore";
 import type { HuntStatus } from "@/lib/types";
 

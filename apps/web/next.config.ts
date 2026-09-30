@@ -157,6 +157,47 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+
+      // ── Embed pages ────────────────────────────────────────────────────
+      // The global rule above sets X-Frame-Options: DENY and
+      // frame-ancestors 'none' which prevents any iframing.
+      // For embed pages we need to relax this so third-party sites can
+      // display the hunt-card widget.
+      //
+      // EMBED_ALLOWED_ORIGINS controls frame-ancestors.  When unset the
+      // embed pages can be framed by any origin (*).  Set it to a
+      // space-separated list of origins to restrict embedding, e.g.:
+      //   EMBED_ALLOWED_ORIGINS=https://partner.com https://blog.example.org
+      //
+      // X-Frame-Options only supports SAMEORIGIN or ALLOW-FROM (deprecated).
+      // Modern browsers rely on frame-ancestors instead, so we remove the
+      // deny header entirely for embed routes.
+      {
+        source: "/hunt/:id/embed",
+        headers: [
+          // Remove the blanket DENY header set by the global rule
+          {
+            key: "X-Frame-Options",
+            value: "SAMEORIGIN", // least restrictive legacy value supported
+          },
+          // Build frame-ancestors from env var or fall back to '*'
+          {
+            key: "Content-Security-Policy",
+            value: (() => {
+              const allowed = process.env.EMBED_ALLOWED_ORIGINS?.trim();
+              const frameAncestors = allowed ? allowed : "*";
+              return [
+                `frame-ancestors ${frameAncestors}`,
+                "default-src 'self'",
+                "style-src 'self' 'unsafe-inline'",
+                "img-src 'self' data: https:",
+                "script-src 'none'",
+                "base-uri 'self'",
+              ].join("; ");
+            })(),
+          },
+        ],
+      },
     ];
   },
 };
